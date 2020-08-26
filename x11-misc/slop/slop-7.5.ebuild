@@ -26,7 +26,6 @@ RDEPEND="
 	x11-libs/libXext
 	opengl? (
 		media-libs/glew:0=
-		media-libs/libglvnd
 		virtual/opengl
 		x11-libs/libXrender:=
 	)

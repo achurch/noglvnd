@@ -28,7 +28,7 @@ RDEPEND="
 	sys-libs/zlib[minizip]
 	elf? ( dev-libs/elfutils )
 	ffmpeg? ( media-video/ffmpeg:= )
-	opengl? ( media-libs/libglvnd )
+	opengl? ( virtual/opengl )
 	qt5? (
 		dev-qt/qtcore:5
 		dev-qt/qtgui:5
@@ -40,8 +40,8 @@ RDEPEND="
 	sqlite? ( dev-db/sqlite:3 )
 "
 DEPEND="${RDEPEND}
-	gles2? ( media-libs/libglvnd )
-	gles3? ( media-libs/libglvnd )
+	gles2? ( virtual/opengl[gles2] )
+	gles3? ( virtual/opengl )
 "
 
 src_prepare() {

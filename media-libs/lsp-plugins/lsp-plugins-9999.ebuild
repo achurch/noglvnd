@@ -25,7 +25,7 @@ REQUIRED_USE="|| ( jack ladspa lv2 )"
 DEPEND="
 	dev-libs/expat
 	media-libs/libsndfile
-	media-libs/libglvnd
+	virtual/opengl
 	doc? ( dev-lang/php:* )
 	jack? (
 		virtual/jack

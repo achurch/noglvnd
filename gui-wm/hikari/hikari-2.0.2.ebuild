@@ -17,7 +17,7 @@ DEPEND="
 	dev-libs/libinput:=
 	dev-libs/libucl
 	gui-libs/wlroots
-	media-libs/libglvnd
+	virtual/opengl[X]
 	x11-libs/cairo:=[X,svg]
 	x11-libs/pango:=[X]
 	x11-libs/pixman

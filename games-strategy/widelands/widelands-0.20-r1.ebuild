@@ -23,13 +23,13 @@ RDEPEND="
 	>=dev-libs/boost-1.48:=
 	dev-libs/icu:=
 	media-libs/glew:0=
-	media-libs/libglvnd
 	media-libs/libpng:0=
 	media-libs/libsdl2[video]
 	media-libs/sdl2-image[jpeg,png]
 	media-libs/sdl2-mixer[vorbis]
 	media-libs/sdl2-ttf
-	sys-libs/zlib:=[minizip]"
+	sys-libs/zlib:=[minizip]
+	virtual/opengl"
 DEPEND="${RDEPEND}
 	${PYTHON_DEPS}
 	dev-lang/lua:0

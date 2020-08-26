@@ -29,7 +29,6 @@ RDEPEND="
 	dev-qt/qtwidgets:5
 	dev-qt/qtx11extras:5
 	media-libs/alsa-lib:0=
-	media-libs/libglvnd[${MULTILIB_USEDEP},X]
 	media-video/ffmpeg[vorbis?,vpx?,x264?,mp3?,theora?]
 	x11-libs/libX11[${MULTILIB_USEDEP}]
 	x11-libs/libXext
@@ -37,6 +36,7 @@ RDEPEND="
 	x11-libs/libXi
 	x11-libs/libXinerama
 	virtual/glu[${MULTILIB_USEDEP}]
+	virtual/opengl[${MULTILIB_USEDEP},X]
 	jack? ( virtual/jack )
 	pulseaudio? ( media-sound/pulseaudio )
 "

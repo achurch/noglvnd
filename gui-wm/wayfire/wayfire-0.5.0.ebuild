@@ -35,7 +35,7 @@ DEPEND="
 	x11-libs/cairo:=[X?,svg]
 	X? ( x11-libs/libxkbcommon:=[X] )
 	x11-libs/pixman
-	gles? ( media-libs/libglvnd[X?] )
+	gles? ( virtual/opengl[X?,gles2] )
 	system-wfconfig? ( >=gui-libs/wf-config-${PV} )
 	!system-wfconfig? ( !gui-libs/wf-config )
 	system-wlroots? ( >=gui-libs/wlroots-0.11.0[elogind=,systemd=,X?] )

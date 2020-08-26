@@ -24,9 +24,9 @@ RDEPEND="
 	dev-libs/gobject-introspection
 	>=media-libs/fontconfig-2.13
 	media-libs/freetype:2
-	media-libs/libglvnd[X]
 	>=sys-apps/dbus-1.4.2[X]
 	sys-libs/zlib
+	virtual/opengl[X]
 	x11-libs/libSM
 	x11-libs/libdrm
 	x11-libs/libICE

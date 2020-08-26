@@ -29,11 +29,11 @@ DEPEND="
 	>=dev-libs/libinput-1.6.0:0=
 	dev-libs/libpcre
 	dev-libs/wayland
+	virtual/opengl[gles2]
 	x11-libs/cairo
 	x11-libs/libxkbcommon
 	x11-libs/pango
 	x11-libs/pixman
-	media-libs/mesa[gles2,libglvnd]
 	elogind? ( >=sys-auth/elogind-239 )
 	swaybar? ( x11-libs/gdk-pixbuf:2 )
 	swaybg? ( gui-apps/swaybg )
