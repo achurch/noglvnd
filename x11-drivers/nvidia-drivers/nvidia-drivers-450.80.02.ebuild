@@ -19,7 +19,7 @@ SRC_URI="
 "
 
 EMULTILIB_PKG="true"
-KEYWORDS="-* amd64"
+KEYWORDS="-* ~amd64"
 LICENSE="GPL-2 NVIDIA-r2"
 SLOT="0/${PV%%.*}"
 
@@ -75,13 +75,14 @@ RDEPEND="
 		>=x11-libs/libvdpau-1.0[${MULTILIB_USEDEP}]
 		sys-libs/zlib[${MULTILIB_USEDEP}]
 	)
+	kernel_linux? ( net-libs/libtirpc )
 "
 QA_PREBUILT="opt/* usr/lib*"
 S=${WORKDIR}/
 PATCHES=(
 	"${FILESDIR}"/${PN}-440.26-locale.patch
 )
-NV_KV_MAX_PLUS="5.8"
+NV_KV_MAX_PLUS="5.9"
 CONFIG_CHECK="
 	!DEBUG_MUTEXES
 	~!I2C_NVIDIA_GPU
@@ -314,6 +315,12 @@ src_install() {
 		doins ${NV_X11}/10_nvidia_wayland.json
 	fi
 
+	insinto /etc/vulkan/icd.d
+	doins nvidia_icd.json
+
+	insinto /etc/vulkan/implicit_layer.d
+	doins nvidia_layers.json
+
 	# OpenCL ICD for NVIDIA
 	if use kernel_linux; then
 		insinto /etc/OpenCL/vendors
@@ -325,12 +332,6 @@ src_install() {
 
 	if use X; then
 		doexe ${NV_OBJ}/nvidia-xconfig
-
-		insinto /etc/vulkan/icd.d
-		doins nvidia_icd.json
-
-		insinto /etc/vulkan/implicit_layer.d
-		doins nvidia_layers.json
 	fi
 
 	if use kernel_linux; then
@@ -427,6 +428,8 @@ src_install() {
 
 	readme.gentoo_create_doc
 
+	dodoc supported-gpus.json
+
 	docinto html
 	dodoc -r ${NV_DOC}/html/*
 }
@@ -457,7 +460,6 @@ src_install-libs() {
 			"libnvidia-compiler.so.${NV_SOVER}"
 			"libnvidia-eglcore.so.${NV_SOVER}"
 			"libnvidia-encode.so.${NV_SOVER}"
-			"libnvidia-fatbinaryloader.so.${NV_SOVER}"
 			"libnvidia-fbc.so.${NV_SOVER}"
 			"libnvidia-glcore.so.${NV_SOVER}"
 			"libnvidia-glsi.so.${NV_SOVER}"
@@ -503,6 +505,7 @@ src_install-libs() {
 		then
 			NV_GLX_LIBRARIES+=(
 				"libnvidia-cbl.so.${NV_SOVER}"
+				"libnvidia-ngx.so.${NV_SOVER}"
 				"libnvidia-rtcore.so.${NV_SOVER}"
 				"libnvoptix.so.${NV_SOVER}"
 			)
