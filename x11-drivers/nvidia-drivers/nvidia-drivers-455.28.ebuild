@@ -19,7 +19,7 @@ SRC_URI="
 "
 
 EMULTILIB_PKG="true"
-KEYWORDS="-* ~amd64"
+KEYWORDS="-* amd64"
 LICENSE="GPL-2 NVIDIA-r2"
 SLOT="0/${PV%%.*}"
 
@@ -66,7 +66,6 @@ DEPEND="
 "
 RDEPEND="
 	${COMMON}
-	tools? ( !media-video/nvidia-settings )
 	uvm? ( >=virtual/opencl-3 )
 	wayland? ( dev-libs/wayland[${MULTILIB_USEDEP}] )
 	X? (

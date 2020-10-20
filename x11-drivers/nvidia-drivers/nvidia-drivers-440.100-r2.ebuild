@@ -65,7 +65,6 @@ DEPEND="
 "
 RDEPEND="
 	${COMMON}
-	tools? ( !media-video/nvidia-settings )
 	uvm? ( >=virtual/opencl-3 )
 	wayland? ( dev-libs/wayland[${MULTILIB_USEDEP}] )
 	X? (
