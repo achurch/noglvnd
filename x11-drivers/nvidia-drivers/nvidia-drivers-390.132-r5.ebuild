@@ -24,7 +24,7 @@ SRC_URI="
 "
 
 EMULTILIB_PKG="true"
-KEYWORDS="-* amd64 x86"
+KEYWORDS="-* ~amd64 ~x86"
 LICENSE="GPL-2 NVIDIA-r2"
 SLOT="0/${PV%%.*}"
 
@@ -45,7 +45,7 @@ COMMON="
 			x11-libs/gtk+:3
 		)
 		x11-libs/cairo
-		x11-libs/gdk-pixbuf[X]
+		x11-libs/gdk-pixbuf
 		x11-libs/gtk+:2
 		x11-libs/libX11
 		x11-libs/libXext
@@ -70,6 +70,7 @@ DEPEND="
 "
 RDEPEND="
 	${COMMON}
+	tools? ( !media-video/nvidia-settings )
 	uvm? ( >=virtual/opencl-3 )
 	wayland? ( dev-libs/wayland[${MULTILIB_USEDEP}] )
 	X? (
@@ -82,10 +83,9 @@ RDEPEND="
 "
 QA_PREBUILT="opt/* usr/lib*"
 S=${WORKDIR}/
-NV_KV_MAX_PLUS="5.8"
+NV_KV_MAX_PLUS="5.5"
 CONFIG_CHECK="
 	!DEBUG_MUTEXES
-	~!I2C_NVIDIA_GPU
 	~!LOCKDEP
 	~DRM
 	~DRM_KMS_HELPER
@@ -175,9 +175,6 @@ src_prepare() {
 		cp nvidia_icd.json.template nvidia_icd.json || die
 		sed -i -e 's:__NV_VK_ICD__:libGLX_nvidia.so.0:g' nvidia_icd.json || die
 	fi
-
-	sed "s:%LIBDIR%:$(get_libdir):g" "${FILESDIR}/nvidia-390.conf" \
-		> "${T}/nvidia-390.conf" || die
 }
 
 src_compile() {
@@ -345,9 +342,6 @@ src_install() {
 
 		insinto /etc/vulkan/icd.d
 		doins nvidia_icd.json
-
-		insinto /etc/X11/xorg.conf.d
-		doins ${T}/nvidia-390.conf
 	fi
 
 	if use kernel_linux; then
