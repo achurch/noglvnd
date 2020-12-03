@@ -10,7 +10,7 @@ EGIT_REPO_URI="https://gitlab.freedesktop.org/xorg/xserver.git"
 DESCRIPTION="X.Org X servers"
 SLOT="0/${PV}"
 if [[ ${PV} != 9999* ]]; then
-	KEYWORDS="~alpha amd64 arm arm64 ~hppa ~ia64 ~mips ~ppc ppc64 ~s390 sparc x86 ~amd64-linux ~x86-linux"
+	KEYWORDS="~alpha ~amd64 ~arm ~arm64 ~hppa ~ia64 ~mips ~ppc ~ppc64 ~s390 ~sparc ~x86 ~amd64-linux ~x86-linux"
 fi
 
 IUSE_SERVERS="dmx kdrive wayland xephyr xnest xorg xvfb"
@@ -87,7 +87,8 @@ CDEPEND="libglvnd? (
 		sys-auth/elogind[pam]
 		sys-auth/pambase[elogind]
 	)
-	"
+	!!x11-drivers/nvidia-drivers[-libglvnd(-)]
+"
 
 DEPEND="${CDEPEND}
 	sys-devel/flex
@@ -210,15 +211,6 @@ src_install() {
 	newins "${FILESDIR}"/xorg-sets.conf xorg.conf
 
 	find "${ED}"/var -type d -empty -delete || die
-}
-
-pkg_postinst() {
-	if ! use minimal; then
-		# sets up libGL and DRI2 symlinks if needed (ie, on a fresh install)
-		if ! use libglvnd; then
-			eselect opengl set xorg-x11 --use-old
-		fi
-	fi
 }
 
 pkg_postrm() {

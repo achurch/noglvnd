@@ -122,6 +122,7 @@ RDEPEND="
 	X? (
 		>=x11-libs/libX11-1.6.2:=[${MULTILIB_USEDEP}]
 		>=x11-libs/libxshmfence-1.1:=[${MULTILIB_USEDEP}]
+		>=x11-libs/libXdamage-1.1.4-r1:=[${MULTILIB_USEDEP}]
 		>=x11-libs/libXext-1.3.2:=[${MULTILIB_USEDEP}]
 		>=x11-libs/libXxf86vm-1.1.3:=[${MULTILIB_USEDEP}]
 		>=x11-libs/libxcb-1.13:=[${MULTILIB_USEDEP}]
@@ -509,7 +510,6 @@ multilib_src_configure() {
 		$(meson_feature gbm)
 		$(meson_feature gles1)
 		$(meson_feature gles2)
-		$(meson_use libglvnd glvnd)
 		$(meson_use selinux)
 		$(meson_feature zstd)
 		-Dvalgrind=$(usex valgrind auto false)
