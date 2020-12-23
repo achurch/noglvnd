@@ -19,7 +19,7 @@ if [[ ${PV} == 9999 ]]; then
 	inherit git-r3
 else
 	SRC_URI="https://archive.mesa3d.org/${MY_P}.tar.xz"
-	KEYWORDS="~alpha amd64 arm arm64 ~hppa ~ia64 ~mips ~ppc ppc64 ~s390 ~sparc ~x86 ~amd64-linux ~x86-linux ~sparc-solaris ~x64-solaris ~x86-solaris"
+	KEYWORDS="~alpha amd64 arm arm64 ~hppa ~ia64 ~mips ppc ppc64 ~s390 ~sparc x86 ~amd64-linux ~x86-linux ~sparc-solaris ~x64-solaris ~x86-solaris"
 fi
 
 LICENSE="MIT"
@@ -377,7 +377,7 @@ multilib_src_configure() {
 	use wayland && platforms+=",wayland"
 	[[ -n $platforms ]] && emesonargs+=(-Dplatforms=${platforms#,})
 
-	if use X || use egl; then
+	if use libglvnd && ( use X || use egl ); then
 		emesonargs+=(-Dglvnd=true)
 	else
 		emesonargs+=(-Dglvnd=false)
