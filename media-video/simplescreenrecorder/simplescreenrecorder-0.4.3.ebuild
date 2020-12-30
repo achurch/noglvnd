@@ -36,7 +36,7 @@ RDEPEND="
 	x11-libs/libXi
 	x11-libs/libXinerama
 	virtual/glu[${MULTILIB_USEDEP}]
-	virtual/opengl[${MULTILIB_USEDEP},X]
+	virtual/opengl[${MULTILIB_USEDEP}]
 	v4l? ( media-libs/libv4l )
 	jack? ( virtual/jack )
 	pulseaudio? ( media-sound/pulseaudio )
