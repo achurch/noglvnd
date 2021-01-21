@@ -1,4 +1,4 @@
-# Copyright 1999-2020 Gentoo Authors
+# Copyright 1999-2021 Gentoo Authors
 # Distributed under the terms of the GNU General Public License v2
 
 EAPI=7
@@ -69,7 +69,7 @@ RDEPEND="
 REQUIRED_USE="tools? ( X )"
 QA_PREBUILT="opt/* usr/lib*"
 S=${WORKDIR}/
-NV_KV_MAX_PLUS="5.5"
+NV_KV_MAX_PLUS="5.8"
 CONFIG_CHECK="
 	!DEBUG_MUTEXES
 	~!LOCKDEP
@@ -141,6 +141,8 @@ src_prepare() {
 
 		# If greater than 2.6.5 use M= instead of SUBDIR=
 #		convert_to_m "${NV_SRC}"/Makefile.kbuild
+
+		eapply "${FILESDIR}"/nvidia-drivers-340.108-linux-5.7.patch
 	fi
 
 	local man_file
