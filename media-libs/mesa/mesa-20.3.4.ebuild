@@ -3,7 +3,7 @@
 
 EAPI=7
 
-PYTHON_COMPAT=( python3_{6,7,8,9} )
+PYTHON_COMPAT=( python3_{7,8,9} )
 
 inherit llvm meson multilib-minimal python-any-r1 linux-info
 
@@ -19,7 +19,7 @@ if [[ ${PV} == 9999 ]]; then
 	inherit git-r3
 else
 	SRC_URI="https://archive.mesa3d.org/${MY_P}.tar.xz"
-	KEYWORDS="~alpha amd64 arm arm64 ~hppa ~ia64 ~mips ppc ppc64 ~s390 sparc x86 ~amd64-linux ~x86-linux ~sparc-solaris ~x64-solaris ~x86-solaris"
+	KEYWORDS="~alpha ~amd64 ~arm ~arm64 ~hppa ~ia64 ~mips ~ppc ~ppc64 ~riscv ~s390 ~sparc ~x86 ~amd64-linux ~x86-linux ~sparc-solaris ~x64-solaris ~x86-solaris"
 fi
 
 LICENSE="MIT"
@@ -264,8 +264,9 @@ pkg_pretend() {
 	if use vulkan; then
 		if ! use video_cards_i965 &&
 		   ! use video_cards_iris &&
-		   ! use video_cards_radeonsi; then
-			ewarn "Ignoring USE=vulkan     since VIDEO_CARDS does not contain i965, iris, or radeonsi"
+		   ! use video_cards_radeonsi &&
+		   ! use video_cards_v3d; then
+			ewarn "Ignoring USE=vulkan     since VIDEO_CARDS does not contain i965, iris, radeonsi, or v3d"
 		fi
 	fi
 
@@ -484,6 +485,7 @@ multilib_src_configure() {
 		vulkan_enable video_cards_i965 intel
 		vulkan_enable video_cards_iris intel
 		vulkan_enable video_cards_radeonsi amd
+		vulkan_enable video_cards_v3d broadcom
 	fi
 
 	if use gallium; then
@@ -508,7 +510,6 @@ multilib_src_configure() {
 		$(meson_feature gbm)
 		$(meson_feature gles1)
 		$(meson_feature gles2)
-		$(meson_use libglvnd glvnd)
 		$(meson_use selinux)
 		$(meson_feature zstd)
 		-Dvalgrind=$(usex valgrind auto false)
