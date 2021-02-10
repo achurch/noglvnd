@@ -1,4 +1,4 @@
-# Copyright 1999-2020 Gentoo Authors
+# Copyright 1999-2021 Gentoo Authors
 # Distributed under the terms of the GNU General Public License v2
 
 EAPI=7
@@ -19,7 +19,7 @@ IUSE="${IUSE_SERVERS} debug +elogind ipv6 libressl libglvnd minimal selinux suid
 CDEPEND="libglvnd? (
 		media-libs/libglvnd[X]
 		!app-eselect/eselect-opengl
-		!!x11-drivers/nvidia-drivers[-libglvnd(-)]
+		!!x11-drivers/nvidia-drivers[-libglvnd(+)]
 	)
 	!libglvnd? ( >=app-eselect/eselect-opengl-1.3.0	)
 	!libressl? ( dev-libs/openssl:0= )
