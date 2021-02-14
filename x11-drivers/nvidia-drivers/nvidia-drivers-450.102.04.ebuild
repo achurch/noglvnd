@@ -22,7 +22,7 @@ LICENSE="GPL-2 NVIDIA-r2"
 SLOT="0/${PV%%.*}"
 # TODO: for arm64, keyword virtual/opencl on arm64
 KEYWORDS="-* amd64"
-IUSE="compat +driver +kms multilib static-libs +tools uvm wayland +X"
+IUSE="compat +driver +kms libglvnd multilib static-libs +tools uvm wayland +X"
 REQUIRED_USE="
 	tools? ( X )
 	static-libs? ( tools )"
@@ -45,8 +45,12 @@ COMMON="
 	)
 	X? (
 		app-misc/pax-utils
-		media-libs/libglvnd[X,${MULTILIB_USEDEP}]
 		>=x11-libs/libvdpau-1.0[${MULTILIB_USEDEP}]
+		!libglvnd? ( >=app-eselect/eselect-opengl-1.0.9 )
+		libglvnd? (
+			media-libs/libglvnd[X,${MULTILIB_USEDEP}]
+			!app-eselect/eselect-opengl
+		)
 	)"
 DEPEND="
 	${COMMON}

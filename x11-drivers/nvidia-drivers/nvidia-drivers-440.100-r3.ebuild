@@ -1,4 +1,4 @@
-# Copyright 1999-2020 Gentoo Authors
+# Copyright 1999-2021 Gentoo Authors
 # Distributed under the terms of the GNU General Public License v2
 
 EAPI=7
@@ -50,12 +50,12 @@ COMMON="
 		x11-libs/pango[X]
 	)
 	X? (
+		app-misc/pax-utils
 		!libglvnd? ( >=app-eselect/eselect-opengl-1.0.9 )
 		libglvnd? (
 			media-libs/libglvnd[X,${MULTILIB_USEDEP}]
 			!app-eselect/eselect-opengl
 		)
-		app-misc/pax-utils
 	)
 "
 DEPEND="
