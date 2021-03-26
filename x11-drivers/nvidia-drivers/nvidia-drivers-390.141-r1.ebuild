@@ -240,6 +240,27 @@ nvidia-drivers_libs_install() {
 
 		dolib.so ${libdir}/${lib%.so*}*
 	done
+
+	if ! use libglvnd; then
+		local gl_libs=(
+			libEGL.so.1.1.0
+			libGL.so.1.7.0
+			libGLESv1_CM.so.1.2.0
+			libGLESv2.so.2.1.0
+			libGLX.so.0
+			libGLdispatch.so.0
+			libOpenGL.so.0
+		)
+		insinto "/usr/$(get_libdir)/opengl/nvidia/lib"
+		for lib in "${gl_libs[@]}"; do
+			soname=$(scanelf -qF'%S#F' "${lib}") || die "Scanning ${lib} failed"
+			if [[ ${soname} && ${soname} != ${lib} ]]; then
+				ln -s ${lib} ${libdir}/${soname} || die
+			fi
+			ln -s ${lib} ${libdir}/${lib%.so*}.so || die
+			doins ${libdir}/${lib%.so*}.*
+		done
+	fi
 }
 
 src_install() {
@@ -343,6 +364,11 @@ pkg_preinst() {
 
 pkg_postinst() {
 	use driver && linux-mod_pkg_postinst
+
+	if ! use libglvnd; then
+		# Switch to the nvidia implementation
+		use X && "${ROOT}"/usr/bin/eselect opengl set --use-old nvidia
+	fi
 
 	optfeature "wayland EGLStream with nvidia-drm.modeset=1" gui-libs/egl-wayland
 
