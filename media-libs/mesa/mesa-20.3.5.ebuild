@@ -1,4 +1,4 @@
-# Copyright 1999-2020 Gentoo Authors
+# Copyright 1999-2021 Gentoo Authors
 # Distributed under the terms of the GNU General Public License v2
 
 EAPI=7
@@ -19,7 +19,7 @@ if [[ ${PV} == 9999 ]]; then
 	inherit git-r3
 else
 	SRC_URI="https://archive.mesa3d.org/${MY_P}.tar.xz"
-	KEYWORDS="~alpha amd64 arm arm64 ~hppa ~ia64 ~mips ppc ppc64 ~s390 sparc x86 ~amd64-linux ~x86-linux ~sparc-solaris ~x64-solaris ~x86-solaris"
+	KEYWORDS="~alpha amd64 arm arm64 ~hppa ~ia64 ~mips ppc ppc64 ~riscv ~s390 sparc x86 ~amd64-linux ~x86-linux ~sparc-solaris ~x64-solaris ~x86-solaris"
 fi
 
 LICENSE="MIT"
@@ -153,7 +153,6 @@ LLVM_DEPSTR="
 	|| (
 		sys-devel/llvm:11[${MULTILIB_USEDEP}]
 		sys-devel/llvm:10[${MULTILIB_USEDEP}]
-		sys-devel/llvm:9[${MULTILIB_USEDEP}]
 	)
 	<sys-devel/llvm-$((LLVM_MAX_SLOT + 1)):=[${MULTILIB_USEDEP}]
 "
@@ -232,6 +231,7 @@ BDEPEND="
 	sys-devel/flex
 	virtual/pkgconfig
 	$(python_gen_any_dep ">=dev-python/mako-0.8.0[\${PYTHON_USEDEP}]")
+	wayland? ( dev-util/wayland-scanner[${MULTILIB_USEDEP}] )
 "
 
 S="${WORKDIR}/${MY_P}"
@@ -264,8 +264,9 @@ pkg_pretend() {
 	if use vulkan; then
 		if ! use video_cards_i965 &&
 		   ! use video_cards_iris &&
-		   ! use video_cards_radeonsi; then
-			ewarn "Ignoring USE=vulkan     since VIDEO_CARDS does not contain i965, iris, or radeonsi"
+		   ! use video_cards_radeonsi &&
+		   ! use video_cards_v3d; then
+			ewarn "Ignoring USE=vulkan     since VIDEO_CARDS does not contain i965, iris, radeonsi, or v3d"
 		fi
 	fi
 
@@ -338,7 +339,15 @@ pkg_setup() {
 	if use video_cards_i965 ||
 	   use video_cards_iris ||
 	   use video_cards_radeonsi; then
-		CONFIG_CHECK="~CHECKPOINT_RESTORE"
+		if kernel_is -ge 5 11 3; then
+			CONFIG_CHECK="~KCMP"
+		elif kernel_is -ge 5 11; then
+			CONFIG_CHECK="~CHECKPOINT_RESTORE"
+		elif kernel_is -ge 5 10 20; then
+			CONFIG_CHECK="~KCMP"
+		else
+			CONFIG_CHECK="~CHECKPOINT_RESTORE"
+		fi
 		linux-info_pkg_setup
 	fi
 
@@ -484,6 +493,7 @@ multilib_src_configure() {
 		vulkan_enable video_cards_i965 intel
 		vulkan_enable video_cards_iris intel
 		vulkan_enable video_cards_radeonsi amd
+		vulkan_enable video_cards_v3d broadcom
 	fi
 
 	if use gallium; then
@@ -508,7 +518,6 @@ multilib_src_configure() {
 		$(meson_feature gbm)
 		$(meson_feature gles1)
 		$(meson_feature gles2)
-		$(meson_use libglvnd glvnd)
 		$(meson_use selinux)
 		$(meson_feature zstd)
 		-Dvalgrind=$(usex valgrind auto false)

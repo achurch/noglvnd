@@ -153,7 +153,6 @@ LLVM_DEPSTR="
 	|| (
 		sys-devel/llvm:11[${MULTILIB_USEDEP}]
 		sys-devel/llvm:10[${MULTILIB_USEDEP}]
-		sys-devel/llvm:9[${MULTILIB_USEDEP}]
 	)
 	<sys-devel/llvm-$((LLVM_MAX_SLOT + 1)):=[${MULTILIB_USEDEP}]
 "
@@ -232,6 +231,7 @@ BDEPEND="
 	sys-devel/flex
 	virtual/pkgconfig
 	$(python_gen_any_dep ">=dev-python/mako-0.8.0[\${PYTHON_USEDEP}]")
+	wayland? ( dev-util/wayland-scanner[${MULTILIB_USEDEP}] )
 "
 
 S="${WORKDIR}/${MY_P}"

@@ -1,4 +1,4 @@
-# Copyright 1999-2020 Gentoo Authors
+# Copyright 1999-2021 Gentoo Authors
 # Distributed under the terms of the GNU General Public License v2
 
 EAPI=7
@@ -49,6 +49,7 @@ src_prepare() {
 	cmake_src_prepare
 
 	# Get rid of any bundled stuff we don't want
+	local pkg
 	for pkg in libpng lzma sqlite3 zlib ; do
 		rm -r src/third-party/${pkg} || die
 	done
@@ -92,7 +93,7 @@ src_compile() {
 
 src_install() {
 	if use qt5 ; then
-		dobin ../${P}_build/qt/${PN}-qt
+		dobin ${BUILD_DIR}/qt/${PN}-qt
 		doman doc/${PN}-qt.6
 		domenu res/${PN}-qt.desktop
 		for size in 16 24 32 48 64 96 128 256 ; do
@@ -101,10 +102,10 @@ src_install() {
 	fi
 	if use sdl ; then
 		doman doc/${PN}.6
-		newbin ../${P}_build/sdl/${PN} ${PN}-sdl
+		newbin ${BUILD_DIR}/sdl/${PN} ${PN}-sdl
 	fi
 
-	dolib.so ../${P}_build/lib${PN}.so*
+	dolib.so ${BUILD_DIR}/lib${PN}.so*
 }
 
 pkg_preinst() {
