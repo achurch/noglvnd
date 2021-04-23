@@ -73,7 +73,7 @@ REQUIRED_USE="
 	zink? ( gallium vulkan )
 "
 
-LIBDRM_DEPSTRING=">=x11-libs/libdrm-2.4.105"
+LIBDRM_DEPSTRING=">=x11-libs/libdrm-2.4.100"
 RDEPEND="
 	>=dev-libs/expat-2.1.0-r3:=[${MULTILIB_USEDEP}]
 	>=sys-libs/zlib-1.2.8[${MULTILIB_USEDEP}]
@@ -516,7 +516,6 @@ multilib_src_configure() {
 		$(meson_feature gles1)
 		$(meson_feature gles2)
 		$(meson_use osmesa)
-		$(meson_use libglvnd glvnd)
 		$(meson_use selinux)
 		$(meson_feature zstd)
 		-Dvalgrind=$(usex valgrind auto false)

@@ -516,7 +516,6 @@ multilib_src_configure() {
 		$(meson_feature gles1)
 		$(meson_feature gles2)
 		$(meson_use osmesa)
-		$(meson_use libglvnd glvnd)
 		$(meson_use selinux)
 		$(meson_feature zstd)
 		-Dvalgrind=$(usex valgrind auto false)
