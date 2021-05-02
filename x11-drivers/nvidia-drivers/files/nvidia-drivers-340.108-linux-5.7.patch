@@ -534,6 +534,28 @@ diff -urN a/kernel/uvm/Makefile b/kernel/uvm/Makefile
  
  module $(MODULE_NAME).ko: $(UVM_MODULE_SYMVERS) debug_diagnostics_printing
  
+diff --git a/kernel/uvm/conftest.sh b/kernel/uvm/conftest.sh
+index b7a85f0..33e2a63 100755
+--- a/kernel/uvm/conftest.sh
++++ b/kernel/uvm/conftest.sh
+@@ -176,6 +176,7 @@ test_headers() {
+     FILES="$FILES linux/ktime.h"
+     FILES="$FILES linux/file.h"
+ 
++    FILES_ARCH="$FILES_ARCH asm/pgtable.h"
+     FILES_ARCH="$FILES_ARCH asm/set_memory.h"
+ 
+     translate_and_find_header_files $HEADERS      $FILES
+@@ -440,6 +441,9 @@ compile_test() {
+             # Determine if the set_memory_array_uc() function is present.
+             #
+             CODE="
++            #if defined(NV_ASM_PGTABLE_H_PRESENT)
++            #include <asm/pgtable.h>
++            #endif
+             #if defined(NV_ASM_SET_MEMORY_H_PRESENT)
+             #include <asm/set_memory.h>
+             #else
 diff -urN a/kernel/uvm/nvidia_uvm_lite.c b/kernel/uvm/nvidia_uvm_lite.c
 --- a/kernel/uvm/nvidia_uvm_lite.c
 +++ b/kernel/uvm/nvidia_uvm_lite.c
