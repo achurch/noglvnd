@@ -14,7 +14,7 @@ if [[ ${PV} != 9999* ]]; then
 fi
 
 IUSE_SERVERS="dmx kdrive wayland xephyr xnest xorg xvfb"
-IUSE="${IUSE_SERVERS} debug +elogind ipv6 libressl libglvnd minimal selinux suid systemd test +udev unwind xcsecurity"
+IUSE="${IUSE_SERVERS} debug +elogind ipv6 libglvnd minimal selinux suid systemd test +udev unwind xcsecurity"
 RESTRICT="!test? ( test )"
 
 CDEPEND="libglvnd? (
@@ -23,8 +23,7 @@ CDEPEND="libglvnd? (
 		!!x11-drivers/nvidia-drivers[-libglvnd(+)]
 	)
 	!libglvnd? ( >=app-eselect/eselect-opengl-1.3.0	)
-	!libressl? ( dev-libs/openssl:0= )
-	libressl? ( dev-libs/libressl:0= )
+	dev-libs/openssl:0=
 	>=x11-apps/iceauth-1.0.2
 	>=x11-apps/rgb-1.0.3
 	>=x11-apps/xauth-1.0.3

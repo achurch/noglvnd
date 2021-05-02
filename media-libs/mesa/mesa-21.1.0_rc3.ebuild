@@ -73,7 +73,7 @@ REQUIRED_USE="
 	zink? ( gallium vulkan )
 "
 
-LIBDRM_DEPSTRING=">=x11-libs/libdrm-2.4.100"
+LIBDRM_DEPSTRING=">=x11-libs/libdrm-2.4.105"
 RDEPEND="
 	>=dev-libs/expat-2.1.0-r3:=[${MULTILIB_USEDEP}]
 	>=sys-libs/zlib-1.2.8[${MULTILIB_USEDEP}]
@@ -148,9 +148,10 @@ RDEPEND="${RDEPEND}
 # 1. List all the working slots (with min versions) in ||, newest first.
 # 2. Update the := to specify *max* version, e.g. < 10.
 # 3. Specify LLVM_MAX_SLOT, e.g. 9.
-LLVM_MAX_SLOT="11"
+LLVM_MAX_SLOT="12"
 LLVM_DEPSTR="
 	|| (
+		sys-devel/llvm:12[${MULTILIB_USEDEP}]
 		sys-devel/llvm:11[${MULTILIB_USEDEP}]
 		sys-devel/llvm:10[${MULTILIB_USEDEP}]
 	)
