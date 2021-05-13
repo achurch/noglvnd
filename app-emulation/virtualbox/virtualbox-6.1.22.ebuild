@@ -43,7 +43,7 @@ CDEPEND="
 		x11-libs/libXext
 		x11-libs/libXmu
 		x11-libs/libXt
-		opengl? ( media-libs/libglvnd[X] )
+		opengl? ( virtual/opengl )
 		qt5? (
 			dev-qt/qtcore:5
 			dev-qt/qtgui:5

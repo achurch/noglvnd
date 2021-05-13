@@ -19,7 +19,7 @@ RDEPEND="
 DEPEND="
 	${RDEPEND}
 	gui-libs/eglexternalplatform
-	media-libs/libglvnd"
+	virtual/opengl"
 BDEPEND="dev-util/wayland-scanner"
 
 PATCHES=(

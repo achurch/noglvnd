@@ -36,7 +36,7 @@ RDEPEND="
 	sci-libs/proj
 	sci-libs/xdrfile
 	sys-libs/zlib
-	media-libs/libglvnd
+	virtual/opengl
 	media-libs/glu
 	blas? (
 		virtual/cblas[eselect-ldso(+)]

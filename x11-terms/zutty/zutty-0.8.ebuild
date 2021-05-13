@@ -18,7 +18,7 @@ KEYWORDS="~amd64"
 
 COMMON_DEPEND="
 	media-libs/freetype:2
-	media-libs/libglvnd[X]
+	virtual/opengl
 	x11-libs/libXmu"
 DEPEND="
 	${COMMON_DEPEND}

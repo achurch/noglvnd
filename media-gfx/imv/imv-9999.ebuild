@@ -25,7 +25,7 @@ RESTRICT="!test? ( test )"
 RDEPEND="
 	dev-libs/icu:=
 	dev-libs/inih
-	media-libs/libglvnd[X?]
+	virtual/opengl
 	x11-libs/libxkbcommon[X?]
 	x11-libs/pango
 	X? (
