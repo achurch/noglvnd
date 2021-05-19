@@ -1,0 +1,21 @@
+diff -urN a/nvidia-persistenced/Makefile b/nvidia-persistenced/Makefile
+--- a/nvidia-persistenced/Makefile	2020-06-25 06:00:27 +0900
++++ b/nvidia-persistenced/Makefile	2021-01-08 07:06:41 +0900
+@@ -100,6 +100,17 @@
+   LIBS += -ldl
+ endif
+ 
++PKG_CONFIG ?= pkg-config
++
++USE_TIRPC ?= $(shell $(PKG_CONFIG) --exists libtirpc && echo 1)
++
++ifeq ($(USE_TIRPC),1)
++  TIRPC_LDFLAGS ?= $(shell $(PKG_CONFIG) --libs libtirpc)
++  TIRPC_CFLAGS ?= $(shell $(PKG_CONFIG) --cflags libtirpc)
++  $(call BUILD_OBJECT_LIST,$(SRC)): CFLAGS += $(TIRPC_CFLAGS)
++  LIBS += $(TIRPC_LDFLAGS)
++endif
++
+ ##############################################################################
+ # build rules
+ ##############################################################################
