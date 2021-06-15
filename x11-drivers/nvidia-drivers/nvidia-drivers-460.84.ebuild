@@ -8,19 +8,18 @@ inherit desktop linux-info linux-mod multilib-build optfeature \
 	readme.gentoo-r1 systemd toolchain-funcs unpacker
 
 NV_KERNEL_MAX="5.12"
-NV_BIN_URI="https://download.nvidia.com/XFree86/Linux-"
-NV_GIT_URI="https://github.com/NVIDIA/nvidia-"
+NV_URI="https://download.nvidia.com/XFree86/"
 
 DESCRIPTION="NVIDIA Accelerated Graphics Driver"
 HOMEPAGE="https://www.nvidia.com/download/index.aspx"
 SRC_URI="
-	amd64? ( ${NV_BIN_URI}x86_64/${PV}/NVIDIA-Linux-x86_64-${PV}.run )
-	arm64? ( ${NV_BIN_URI}aarch64/${PV}/NVIDIA-Linux-aarch64-${PV}.run )
-	${NV_GIT_URI}installer/archive/${PV}.tar.gz -> nvidia-installer-${PV}.tar.gz
-	${NV_GIT_URI}modprobe/archive/${PV}.tar.gz -> nvidia-modprobe-${PV}.tar.gz
-	${NV_GIT_URI}persistenced/archive/${PV}.tar.gz -> nvidia-persistenced-${PV}.tar.gz
-	${NV_GIT_URI}settings/archive/${PV}.tar.gz -> nvidia-settings-${PV}.tar.gz
-	${NV_GIT_URI}xconfig/archive/${PV}.tar.gz -> nvidia-xconfig-${PV}.tar.gz"
+	amd64? ( ${NV_URI}Linux-x86_64/${PV}/NVIDIA-Linux-x86_64-${PV}.run )
+	arm64? ( ${NV_URI}Linux-aarch64/${PV}/NVIDIA-Linux-aarch64-${PV}.run )
+	${NV_URI}nvidia-installer/nvidia-installer-${PV}.tar.bz2
+	${NV_URI}nvidia-modprobe/nvidia-modprobe-${PV}.tar.bz2
+	${NV_URI}nvidia-persistenced/nvidia-persistenced-${PV}.tar.bz2
+	${NV_URI}nvidia-settings/nvidia-settings-${PV}.tar.bz2
+	${NV_URI}nvidia-xconfig/nvidia-xconfig-${PV}.tar.bz2"
 # nvidia-installer is unused but here for GPL-2's "distribute sources"
 S="${WORKDIR}"
 
@@ -107,11 +106,6 @@ pkg_setup() {
 	of drivers (no custom config), and optional nvidia-drm.modeset=1.
 	Cannot be directly selected in the kernel's menuconfig, so enable
 	options such as CONFIG_DRM_FBDEV_EMULATION instead."
-
-	if kernel_is -lt 5 10; then
-		CONFIG_CHECK+=" PM" # needed since 460.67 (bug #778920)
-		local ERROR_PM="CONFIG_PM: is not set but needed with kernel version <5.10"
-	fi
 
 	BUILD_PARAMS='NV_VERBOSE=1 IGNORE_CC_MISMATCH=yes SYSSRC="${KV_DIR}" SYSOUT="${KV_OUT_DIR}"'
 	BUILD_TARGETS="modules" # defaults' clean sometimes deletes modules
