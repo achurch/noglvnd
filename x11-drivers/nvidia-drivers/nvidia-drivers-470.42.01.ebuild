@@ -75,7 +75,7 @@ BDEPEND="
 	app-misc/pax-utils
 	virtual/pkgconfig"
 
-QA_PREBUILT="opt/* usr/lib*"
+QA_PREBUILT="lib/firmware/* opt/bin/* usr/lib*"
 
 PATCHES=(
 	"${FILESDIR}"/nvidia-modprobe-390.141-uvm-perms.patch
@@ -111,8 +111,8 @@ pkg_setup() {
 		nvidia(video:kernel)
 		nvidia-drm(video:kernel)
 		nvidia-modeset(video:kernel)
+		nvidia-peermem(video:kernel)
 		nvidia-uvm(video:kernel)"
-	# nvidia-peermem(video:kernel) - skipping unless there is a demand for it
 
 	linux-mod_pkg_setup
 
@@ -252,6 +252,7 @@ src_install() {
 			libdir+=/32
 		else
 			libs+=(
+				libnvidia-nvvm.so.4.0.0
 				nvidia-cbl
 				nvidia-cfg
 				nvidia-rtcore
@@ -262,16 +263,16 @@ src_install() {
 
 		local lib soname
 		for lib in "${libs[@]}"; do
-			lib=lib${lib}.so.${PV}
+			[[ ${lib:0:3} != lib ]] && lib=lib${lib}.so.${PV}
 
 			# auto-detect soname and create appropriate symlinks
 			soname=$(scanelf -qF'%S#F' ${lib}) || die "Scanning ${lib} failed"
 			if [[ ${soname} && ${soname} != ${lib} ]]; then
 				ln -s ${lib} ${libdir}/${soname} || die
+				dolib.so ${libdir}/${soname}
 			fi
 			ln -s ${lib} ${libdir}/${lib%.so*}.so || die
-
-			dolib.so ${libdir}/${lib%.so*}*
+			dolib.so ${libdir}/{${lib},${lib%.so*}.so}
 		done
 
 		if ! use libglvnd; then
@@ -303,6 +304,9 @@ src_install() {
 		newins "${FILESDIR}"/nvidia-460.conf nvidia.conf
 		doins "${FILESDIR}"/nvidia-blacklist-nouveau.conf
 		doins "${FILESDIR}"/nvidia-rmmod.conf
+
+		insinto /lib/firmware/nvidia/${PV}
+		doins firmware/gsp.bin
 
 		# used for gpu verification with binpkgs (not kept)
 		insinto /usr/share/nvidia
@@ -384,6 +388,10 @@ src_install() {
 
 	# install prebuilt-only libraries
 	multilib_foreach_abi nvidia-drivers_libs_install
+
+	# install dlls for optional use with proton/wine
+	insinto /usr/$(get_libdir)/nvidia/wine
+	use amd64 && doins {_,}nvngx.dll
 
 	# install systemd sleep services
 	exeinto /lib/systemd/system-sleep
