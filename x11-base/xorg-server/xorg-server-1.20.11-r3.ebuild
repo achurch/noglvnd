@@ -4,7 +4,6 @@
 EAPI=7
 
 XORG_DOC=doc
-XORG_TARBALL_SUFFIX="xz"
 inherit xorg-3 multilib flag-o-matic toolchain-funcs
 EGIT_REPO_URI="https://gitlab.freedesktop.org/xorg/xserver.git"
 
@@ -21,7 +20,7 @@ RESTRICT="!test? ( test )"
 CDEPEND="libglvnd? (
 		media-libs/libglvnd[X]
 		!app-eselect/eselect-opengl
-		!!x11-drivers/nvidia-drivers[-libglvnd(-)]
+		!!x11-drivers/nvidia-drivers[-libglvnd(+)]
 	)
 	!libglvnd? ( >=app-eselect/eselect-opengl-1.3.0	)
 	dev-libs/openssl:0=
@@ -82,7 +81,6 @@ CDEPEND="libglvnd? (
 		sys-auth/elogind[pam]
 		sys-auth/pambase[elogind]
 	)
-	!!x11-drivers/nvidia-drivers[-libglvnd(+)]
 "
 DEPEND="${CDEPEND}
 	>=x11-base/xorg-proto-2018.4
@@ -96,7 +94,6 @@ DEPEND="${CDEPEND}
 			)
 		)
 	)
-	wayland? ( x11-base/xwayland )
 "
 RDEPEND="${CDEPEND}
 	!systemd? ( gui-libs/display-manager-init )
@@ -216,6 +213,15 @@ src_install() {
 	newins "${FILESDIR}"/xorg-sets.conf xorg.conf
 
 	find "${ED}"/var -type d -empty -delete || die
+}
+
+pkg_postinst() {
+	if ! use minimal; then
+		# sets up libGL and DRI2 symlinks if needed (ie, on a fresh install)
+		if ! use libglvnd; then
+			eselect opengl set xorg-x11 --use-old
+		fi
+	fi
 }
 
 pkg_postrm() {
