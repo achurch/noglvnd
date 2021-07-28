@@ -1,0 +1,156 @@
+diff -urN a/kernel/common/inc/nv-linux.h b/kernel/common/inc/nv-linux.h
+--- a/kernel/common/inc/nv-linux.h	2021-07-28 13:45:13 +0900
++++ b/kernel/common/inc/nv-linux.h	2021-07-28 13:45:28 +0900
+@@ -157,8 +157,10 @@
+ 
+ #if defined(NVCPU_X86_64) && !defined(HAVE_COMPAT_IOCTL)
+ #include <linux/syscalls.h>         /* sys_ioctl()                      */
++#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 9, 0)
+ #include <linux/ioctl32.h>          /* register_ioctl32_conversion()    */
+ #endif
++#endif
+ 
+ #if defined(CONFIG_VGA_ARB)
+ #include <linux/vgaarb.h>
+diff -urN a/kernel/common/inc/nv-mm.h b/kernel/common/inc/nv-mm.h
+--- a/kernel/common/inc/nv-mm.h	2020-05-29 17:38:07 +0900
++++ b/kernel/common/inc/nv-mm.h	2021-07-28 13:45:28 +0900
+@@ -139,7 +139,12 @@
+             if (force)
+                 flags |= FOLL_FORCE;
+ 
+-        #if defined(NV_GET_USER_PAGES_REMOTE_HAS_LOCKED_ARG)
++        #if !defined(NV_GET_USER_PAGES_REMOTE_HAS_TSK_ARG)
++
++               return get_user_pages_remote(mm, start, nr_pages, flags,
++                                            pages, vmas, NULL);
++
++        #elif defined(NV_GET_USER_PAGES_REMOTE_HAS_LOCKED_ARG)
+ 
+                return get_user_pages_remote(tsk, mm, start, nr_pages, flags,
+                                             pages, vmas, NULL);
+diff -urN a/kernel/conftest.sh b/kernel/conftest.sh
+--- a/kernel/conftest.sh	2021-07-28 13:45:13 +0900
++++ b/kernel/conftest.sh	2021-07-28 13:45:28 +0900
+@@ -2521,6 +2521,7 @@
+                 echo "#undef NV_GET_USER_PAGES_REMOTE_PRESENT" | append_conftest "functions"
+                 echo "#undef NV_GET_USER_PAGES_REMOTE_HAS_WRITE_AND_FORCE_ARGS" | append_conftest "functions"
+                 echo "#undef NV_GET_USER_PAGES_REMOTE_HAS_LOCKED_ARG" | append_conftest "functions"
++                echo "#undef NV_GET_USER_PAGES_REMOTE_HAS_TSK_ARG" | append_conftest "functions"
+                 rm -f conftest$$.o
+                 return
+             fi
+@@ -2550,9 +2551,11 @@
+             if [ -f conftest$$.o ]; then
+                 echo "#define NV_GET_USER_PAGES_REMOTE_HAS_WRITE_AND_FORCE_ARGS" | append_conftest "functions"
+                 echo "#undef NV_GET_USER_PAGES_REMOTE_HAS_LOCKED_ARG" | append_conftest "functions"
++                echo "#undef NV_GET_USER_PAGES_REMOTE_HAS_TSK_ARG" | append_conftest "functions"
+                 rm -f conftest$$.o
+                 return
+             fi
++            echo "#undef NV_GET_USER_PAGES_REMOTE_HAS_WRITE_AND_FORCE_ARGS" | append_conftest "functions"
+ 
+             # conftest #3: check if get_user_pages_remote() has locked argument
+ 
+@@ -2564,6 +2567,31 @@
+                                        unsigned long nr_pages,
+                                        unsigned int gup_flags,
+                                        struct page **pages,
++                                       struct vm_area_struct **vmas) {
++                return 0;
++            }" > conftest$$.c
++
++            $CC $CFLAGS -c conftest$$.c > /dev/null 2>&1
++            rm -f conftest$$.c
++
++            if [ -f conftest$$.o ]; then
++                echo "#undef NV_GET_USER_PAGES_REMOTE_HAS_LOCKED_ARG" | append_conftest "functions"
++                echo "#undef NV_GET_USER_PAGES_REMOTE_HAS_TSK_ARG" | append_conftest "functions"
++                rm -f conftest$$.o
++                return
++            fi
++            echo "#define NV_GET_USER_PAGES_REMOTE_HAS_LOCKED_ARG" | append_conftest "functions"
++
++            # conftest #4: check if get_user_pages_remote() has tsk argument
++
++            echo "$CONFTEST_PREAMBLE
++            #include <linux/mm.h>
++            long get_user_pages_remote(struct task_struct *tsk,
++                                       struct mm_struct *mm,
++                                       unsigned long start,
++                                       unsigned long nr_pages,
++                                       unsigned int gup_flags,
++                                       struct page **pages,
+                                        struct vm_area_struct **vmas,
+                                        int *locked) {
+                 return 0;
+@@ -2573,12 +2601,11 @@
+             rm -f conftest$$.c
+ 
+             if [ -f conftest$$.o ]; then
+-                echo "#define NV_GET_USER_PAGES_REMOTE_HAS_LOCKED_ARG" | append_conftest "functions"
++                echo "#define NV_GET_USER_PAGES_REMOTE_HAS_TSK_ARG" | append_conftest "functions"
+                 rm -f conftest$$.o
+             else
+-                echo "#undef NV_GET_USER_PAGES_REMOTE_HAS_LOCKED_ARG" | append_conftest "functions"
++                echo "#undef NV_GET_USER_PAGES_REMOTE_HAS_TSK_ARG" | append_conftest "functions"
+             fi
+-            echo "#undef NV_GET_USER_PAGES_REMOTE_HAS_WRITE_AND_FORCE_ARGS" | append_conftest "functions"
+ 
+         ;;
+ 
+diff -urN a/kernel/nvidia/nv-pci.c b/kernel/nvidia/nv-pci.c
+--- a/kernel/nvidia/nv-pci.c	2020-05-29 17:38:07 +0900
++++ b/kernel/nvidia/nv-pci.c	2021-07-28 13:45:39 +0900
+@@ -405,8 +405,12 @@
+ 
+ #if defined(CONFIG_VGA_ARB) && !defined(NVCPU_PPC64LE)
+ #if defined(VGA_DEFAULT_DEVICE)
++#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 9, 0)
++    vga_get(VGA_DEFAULT_DEVICE, VGA_RSRC_LEGACY_MASK, 0);
++#else
+     vga_tryget(VGA_DEFAULT_DEVICE, VGA_RSRC_LEGACY_MASK);
+ #endif
++#endif
+     vga_set_legacy_decoding(pci_dev, VGA_RSRC_NONE);
+ #endif
+ 
+diff -urN a/kernel/nvidia-drm/nvidia-drm-drv.c b/kernel/nvidia-drm/nvidia-drm-drv.c
+--- a/kernel/nvidia-drm/nvidia-drm-drv.c	2020-05-29 17:38:06 +0900
++++ b/kernel/nvidia-drm/nvidia-drm-drv.c	2021-07-28 13:45:39 +0900
+@@ -687,7 +687,11 @@
+ #endif
+                                DRIVER_GEM  | DRIVER_RENDER,
+ 
++#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 9, 0)
++    .gem_free_object_unlocked = nv_drm_gem_free,
++#else
+     .gem_free_object        = nv_drm_gem_free,
++#endif
+ 
+     .ioctls                 = nv_drm_ioctls,
+     .num_ioctls             = ARRAY_SIZE(nv_drm_ioctls),
+diff -urN a/kernel/nvidia-uvm/uvm8_tools.c b/kernel/nvidia-uvm/uvm8_tools.c
+--- a/kernel/nvidia-uvm/uvm8_tools.c	2020-05-29 17:38:06 +0900
++++ b/kernel/nvidia-uvm/uvm8_tools.c	2021-07-28 13:47:51 +0900
+@@ -192,7 +192,7 @@
+ {
+     long event_tracker = atomic_long_read((atomic_long_t *)&filp->private_data);
+ 
+-    smp_read_barrier_depends();
++    smp_rmb();
+     return (uvm_tools_event_tracker_t *)event_tracker;
+ }
+ 
+diff -urN a/kernel/nvidia-uvm/uvm8_va_range.h b/kernel/nvidia-uvm/uvm8_va_range.h
+--- a/kernel/nvidia-uvm/uvm8_va_range.h	2020-05-29 17:38:06 +0900
++++ b/kernel/nvidia-uvm/uvm8_va_range.h	2021-07-28 13:45:55 +0900
+@@ -761,7 +761,7 @@
+     // make sure that any initialization of this block by the creating thread is
+     // visible to later accesses in this thread, which requires a data
+     // dependency barrier.
+-    smp_read_barrier_depends();
++    smp_rmb();
+     return block;
+ }
+ 

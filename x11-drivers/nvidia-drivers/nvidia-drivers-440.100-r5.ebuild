@@ -78,6 +78,9 @@ BDEPEND="
 QA_PREBUILT="opt/* usr/lib*"
 
 PATCHES=(
+	"${FILESDIR}"/${P}-linux-5.8.patch
+	"${FILESDIR}"/${P}-linux-5.9.patch
+	"${FILESDIR}"/${P}-linux-5.10.patch
 	"${FILESDIR}"/${PN}-440.26-locale.patch
 	"${FILESDIR}"/nvidia-modprobe-390.141-uvm-perms.patch
 	"${FILESDIR}"/nvidia-persistenced-440.100-pid_str.patch
