@@ -75,23 +75,17 @@ BDEPEND="
 	app-misc/pax-utils
 	virtual/pkgconfig"
 
-QA_PREBUILT="lib/firmware/* opt/bin/* usr/lib*"
+QA_PREBUILT="opt/* usr/lib*"
 
 PATCHES=(
 	"${FILESDIR}"/nvidia-modprobe-390.141-uvm-perms.patch
 )
+
 DOCS=(
 	README.txt NVIDIA_Changelog supported-gpus/supported-gpus.json
 	nvidia-settings/doc/{FRAMELOCK,NV-CONTROL-API}.txt
 )
 HTML_DOCS=( html/. )
-
-DISABLE_AUTOFORMATTING="yes"
-DOC_CONTENTS="Users should be in the 'video' group to use NVIDIA devices.
-You can add yourself by using: gpasswd -a my-user video
-
-For general information on using nvidia-drivers, please see:
-https://wiki.gentoo.org/wiki/NVIDIA/nvidia-drivers"
 
 pkg_setup() {
 	use driver || return
@@ -107,34 +101,17 @@ pkg_setup() {
 	Cannot be directly selected in the kernel's menuconfig, so enable
 	options such as CONFIG_DRM_FBDEV_EMULATION instead."
 
+	BUILD_PARAMS='NV_VERBOSE=1 IGNORE_CC_MISMATCH=yes SYSSRC="${KV_DIR}" SYSOUT="${KV_OUT_DIR}"'
+	BUILD_TARGETS="modules" # defaults' clean sometimes deletes modules
 	MODULE_NAMES="
 		nvidia(video:kernel)
 		nvidia-drm(video:kernel)
 		nvidia-modeset(video:kernel)
-		nvidia-peermem(video:kernel)
 		nvidia-uvm(video:kernel)"
 
 	linux-mod_pkg_setup
 
-	[[ ${MERGE_TYPE} == binary ]] && return
-
-	BUILD_PARAMS='NV_VERBOSE=1 IGNORE_CC_MISMATCH=yes SYSSRC="${KV_DIR}" SYSOUT="${KV_OUT_DIR}"'
-	BUILD_TARGETS="modules" # defaults' clean sometimes deletes modules
-
-	if linux_chkconfig_present CC_IS_CLANG; then
-		ewarn "Warning: building ${PN} with a clang-built kernel is experimental."
-
-		BUILD_PARAMS+=' CC=${CHOST}-clang'
-		if linux_chkconfig_present LD_IS_LLD; then
-			BUILD_PARAMS+=' LD=ld.lld'
-			if linux_chkconfig_present LTO_CLANG_THIN; then
-				# kernel enables cache by default leading to sandbox violations
-				BUILD_PARAMS+=' ldflags-y=--thinlto-cache-dir= LDFLAGS_MODULE=--thinlto-cache-dir='
-			fi
-		fi
-	fi
-
-	if kernel_is -gt ${NV_KERNEL_MAX/./ }; then
+	if [[ ${MERGE_TYPE} != binary ]] && kernel_is -gt ${NV_KERNEL_MAX/./ }; then
 		ewarn "Kernel ${KV_MAJOR}.${KV_MINOR} is either known to break this version of nvidia-drivers"
 		ewarn "or was not tested with it. It is recommended to use one of:"
 		ewarn "  <=sys-kernel/gentoo-kernel-${NV_KERNEL_MAX}"
@@ -252,7 +229,6 @@ src_install() {
 			libdir+=/32
 		else
 			libs+=(
-				libnvidia-nvvm.so.4.0.0
 				nvidia-cbl
 				nvidia-cfg
 				nvidia-rtcore
@@ -263,16 +239,16 @@ src_install() {
 
 		local lib soname
 		for lib in "${libs[@]}"; do
-			[[ ${lib:0:3} != lib ]] && lib=lib${lib}.so.${PV}
+			lib=lib${lib}.so.${PV}
 
 			# auto-detect soname and create appropriate symlinks
 			soname=$(scanelf -qF'%S#F' ${lib}) || die "Scanning ${lib} failed"
 			if [[ ${soname} && ${soname} != ${lib} ]]; then
 				ln -s ${lib} ${libdir}/${soname} || die
-				dolib.so ${libdir}/${soname}
 			fi
 			ln -s ${lib} ${libdir}/${lib%.so*}.so || die
-			dolib.so ${libdir}/{${lib},${lib%.so*}.so}
+
+			dolib.so ${libdir}/${lib%.so*}*
 		done
 
 		if ! use libglvnd; then
@@ -301,12 +277,7 @@ src_install() {
 		linux-mod_src_install
 
 		insinto /etc/modprobe.d
-		newins "${FILESDIR}"/nvidia-460.conf nvidia.conf
-		doins "${FILESDIR}"/nvidia-blacklist-nouveau.conf
-		doins "${FILESDIR}"/nvidia-rmmod.conf
-
-		insinto /lib/firmware/nvidia/${PV}
-		doins firmware/gsp.bin
+		newins "${FILESDIR}"/nvidia-470.conf nvidia.conf
 
 		# used for gpu verification with binpkgs (not kept)
 		insinto /usr/share/nvidia
@@ -389,18 +360,25 @@ src_install() {
 	# install prebuilt-only libraries
 	multilib_foreach_abi nvidia-drivers_libs_install
 
-	# install dlls for optional use with proton/wine
-	insinto /usr/$(get_libdir)/nvidia/wine
-	use amd64 && doins {_,}nvngx.dll
-
 	# install systemd sleep services
 	exeinto /lib/systemd/system-sleep
-	doexe systemd/system-sleep/nvidia
-	dobin systemd/nvidia-sleep.sh
-	systemd_dounit systemd/system/nvidia-{hibernate,resume,suspend}.service
+	doexe nvidia
+	dobin nvidia-sleep.sh
+	systemd_dounit nvidia-{hibernate,resume,suspend}.service
+
+	# create README.gentoo
+	local DISABLE_AUTOFORMATTING="yes"
+	local DOC_CONTENTS=\
+"Trusted users should be in the 'video' group to use NVIDIA devices.
+You can add yourself by using: gpasswd -a my-user video
+
+See '${EPREFIX}/etc/modprobe.d/nvidia.conf' for modules options.
+
+For general information on using nvidia-drivers, please see:
+https://wiki.gentoo.org/wiki/NVIDIA/nvidia-drivers"
+	readme.gentoo_create_doc
 
 	einstalldocs
-	readme.gentoo_create_doc
 }
 
 pkg_preinst() {
@@ -410,8 +388,7 @@ pkg_preinst() {
 	# set video group id based on live system (bug #491414)
 	local g=$(getent group video | cut -d: -f3)
 	[[ ${g} ]] || die "Failed to determine video group id"
-	sed "s/PACKAGE/${PF}/;s/VIDEOGID/${g}/" \
-		-i "${ED}"/etc/modprobe.d/nvidia.conf || die
+	sed -i "s/@VIDEOGID@/${g}/" "${ED}"/etc/modprobe.d/nvidia.conf || die
 
 	# try to find driver mismatches using temporary supported-gpus.json
 	for g in $(grep -l 0x10de /sys/bus/pci/devices/*/vendor 2>/dev/null); do
@@ -457,5 +434,21 @@ pkg_postinst() {
 		fi
 		ewarn "...then downgrade to a legacy branch if possible. For details, see:"
 		ewarn "https://www.nvidia.com/object/IO_32667.html"
+	fi
+
+	# Try to show this message only to users that may really need it
+	# given the workaround is discouraged and usage isn't widespread.
+	if use X && [[ ${REPLACING_VERSIONS} ]] &&
+		ver_test ${REPLACING_VERSIONS} -lt 460.73.01 &&
+		grep -qr Coolbits "${EROOT}"/etc/X11/{xorg.conf,xorg.conf.d/*.conf} 2>/dev/null; then
+		elog
+		elog "Coolbits support with ${PN} has been restricted to require Xorg"
+		elog "with root privilege by NVIDIA (being in video group is not sufficient)."
+		elog "e.g. attempting to change fan speed with nvidia-settings would fail."
+		elog
+		elog "Depending on your display manager (e.g. sddm starts X as root, gdm doesn't)"
+		elog "or if using startx, it may be necessary to emerge x11-base/xorg-server with"
+		elog 'USE="suid -elogind -systemd" if wish to keep using this feature.'
+		elog "Bug: https://bugs.gentoo.org/784248"
 	fi
 }

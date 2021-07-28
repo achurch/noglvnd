@@ -3,7 +3,7 @@
 
 EAPI=7
 
-PYTHON_COMPAT=( python3_{7,8} )
+PYTHON_COMPAT=( python3_{7..9} )
 inherit desktop flag-o-matic java-pkg-opt-2 linux-info pax-utils python-single-r1 tmpfiles toolchain-funcs udev xdg
 
 MY_PN="VirtualBox"
@@ -20,7 +20,7 @@ SRC_URI="https://download.virtualbox.org/virtualbox/${DIR_PV:-${MY_PV}}/${MY_P}.
 LICENSE="GPL-2 dtrace? ( CDDL )"
 SLOT="0/$(ver_cut 1-2)"
 [[ "${PV}" == *_beta* ]] || [[ "${PV}" == *_rc* ]] || \
-KEYWORDS="amd64"
+KEYWORDS="~amd64"
 IUSE="alsa debug doc dtrace headless java lvm +opus pam pax-kernel pulseaudio +opengl python +qt5 +sdk +udev vboxwebsrv vnc"
 
 CDEPEND="
@@ -90,7 +90,7 @@ BDEPEND="
 		dev-texlive/texlive-fontsrecommended
 		dev-texlive/texlive-fontsextra
 	)
-	java? ( >=virtual/jdk-1.6 )
+	java? ( >=virtual/jdk-1.8 )
 "
 RDEPEND="
 	${CDEPEND}
@@ -188,7 +188,7 @@ src_prepare() {
 
 	# Use PAM only when pam USE flag is enbaled (bug #376531)
 	if ! use pam ; then
-		elog "Disabling PAM removes the possibility to use the VRDP features."
+		einfo "Disabling PAM removes the possibility to use the VRDP features."
 		sed -i 's@^.*VBOX_WITH_PAM@#VBOX_WITH_PAM@' Config.kmk || die
 		sed -i 's@\(.*/auth/Makefile.kmk.*\)@#\1@' \
 			src/VBox/HostServices/Makefile.kmk || die
@@ -213,7 +213,7 @@ src_prepare() {
 
 	eapply "${WORKDIR}/patches"
 
-	eapply_user
+	default
 }
 
 doecho() {
@@ -413,7 +413,6 @@ src_install() {
 	fi
 
 	if use udev ; then
-		# New way of handling USB device nodes for VBox (bug #356215)
 		local udevdir="$(get_udevdir)"
 		insinto ${udevdir}
 		doins VBoxCreateUSBNode.sh
@@ -460,10 +459,6 @@ src_install() {
 	newtmpfiles "${FILESDIR}"/${PN}-vboxusb_tmpfilesd ${PN}-vboxusb.conf
 }
 
-pkg_preinst() {
-	xdg_pkg_preinst
-}
-
 pkg_postinst() {
 	xdg_pkg_postinst
 
@@ -504,8 +499,4 @@ pkg_postinst() {
 		elog "Please remove \"${ROOT}/etc/udev/rules.d/10-virtualbox.rules\""
 		elog "or else USB in ${PN} won't work."
 	fi
-}
-
-pkg_postrm() {
-	xdg_pkg_postrm
 }

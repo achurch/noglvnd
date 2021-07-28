@@ -10,7 +10,7 @@ LIBDVDNAV_VERSION="6.0.0-Leia-Alpha-3"
 FFMPEG_VERSION="4.3.1"
 CODENAME="Matrix"
 FFMPEG_KODI_VERSION="Beta1"
-PYTHON_COMPAT=( python3_{6,7,8,9} )
+PYTHON_COMPAT=( python3_{8,9} )
 SRC_URI="https://github.com/xbmc/libdvdcss/archive/${LIBDVDCSS_VERSION}.tar.gz -> libdvdcss-${LIBDVDCSS_VERSION}.tar.gz
 	https://github.com/xbmc/libdvdread/archive/${LIBDVDREAD_VERSION}.tar.gz -> libdvdread-${LIBDVDREAD_VERSION}.tar.gz
 	https://github.com/xbmc/libdvdnav/archive/${LIBDVDNAV_VERSION}.tar.gz -> libdvdnav-${LIBDVDNAV_VERSION}.tar.gz
@@ -26,7 +26,7 @@ else
 	MY_PV=${MY_PV/_rc/RC}
 	MY_P="${PN}-${MY_PV}"
 	SRC_URI+=" https://github.com/xbmc/xbmc/archive/${MY_PV}-${CODENAME}.tar.gz -> ${MY_P}.tar.gz"
-	KEYWORDS="~amd64 ~arm arm64 x86"
+	KEYWORDS="amd64 ~arm arm64 x86"
 	S=${WORKDIR}/xbmc-${MY_PV}-${CODENAME}
 fi
 
@@ -84,8 +84,8 @@ COMMON_TARGET_DEPEND="${PYTHON_DEPS}
 	>=dev-libs/spdlog-1.5.0:=
 	dev-libs/tinyxml[stl]
 	$(python_gen_cond_dep '
-		dev-python/pillow[${PYTHON_MULTI_USEDEP}]
-		dev-python/pycryptodome[${PYTHON_MULTI_USEDEP}]
+		dev-python/pillow[${PYTHON_USEDEP}]
+		dev-python/pycryptodome[${PYTHON_USEDEP}]
 	')
 	>=dev-libs/libcdio-2.1.0[cxx]
 	>=dev-libs/libfmt-6.1.2
