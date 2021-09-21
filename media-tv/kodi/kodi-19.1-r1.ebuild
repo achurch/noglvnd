@@ -7,9 +7,9 @@ PYTHON_REQ_USE="sqlite,ssl"
 LIBDVDCSS_VERSION="1.4.2-Leia-Beta-5"
 LIBDVDREAD_VERSION="6.0.0-Leia-Alpha-3"
 LIBDVDNAV_VERSION="6.0.0-Leia-Alpha-3"
-FFMPEG_VERSION="4.3.1"
+FFMPEG_VERSION="4.3.2"
 CODENAME="Matrix"
-FFMPEG_KODI_VERSION="Beta1"
+FFMPEG_KODI_VERSION="19.1"
 PYTHON_COMPAT=( python3_{8,9} )
 SRC_URI="https://github.com/xbmc/libdvdcss/archive/${LIBDVDCSS_VERSION}.tar.gz -> libdvdcss-${LIBDVDCSS_VERSION}.tar.gz
 	https://github.com/xbmc/libdvdread/archive/${LIBDVDREAD_VERSION}.tar.gz -> libdvdread-${LIBDVDREAD_VERSION}.tar.gz
@@ -25,10 +25,14 @@ else
 	MY_PV=${MY_PV/_beta/b}
 	MY_PV=${MY_PV/_rc/RC}
 	MY_P="${PN}-${MY_PV}"
-	SRC_URI+=" https://github.com/xbmc/xbmc/archive/${MY_PV}-${CODENAME}.tar.gz -> ${MY_P}.tar.gz"
-	KEYWORDS="amd64 ~arm arm64 x86"
-	S=${WORKDIR}/xbmc-${MY_PV}-${CODENAME}
+	SRC_URI+=" https://github.com/xbmc/xbmc/archive/v${MY_PV}.tar.gz -> ${MY_P}.tar.gz"
+	KEYWORDS="~amd64 ~arm arm64 ~x86"
+	S=${WORKDIR}/xbmc-${MY_PV}
 fi
+
+PATCHES=(
+	"${FILESDIR}/${P}-fmt-8.patch"
+)
 
 inherit autotools cmake desktop linux-info pax-utils python-single-r1 xdg
 
@@ -62,7 +66,7 @@ RESTRICT="!test? ( test )"
 
 COMMON_DEPEND="
 	>=dev-libs/lzo-2.04
-	>=dev-libs/flatbuffers-1.11.0
+	>=dev-libs/flatbuffers-1.12.0:=
 	>=media-libs/libjpeg-turbo-2.0.4:=
 	>=media-libs/libpng-1.6.26:0=
 "

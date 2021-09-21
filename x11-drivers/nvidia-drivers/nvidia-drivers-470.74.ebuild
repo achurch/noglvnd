@@ -7,7 +7,7 @@ MODULES_OPTIONAL_USE="driver"
 inherit desktop linux-info linux-mod multilib-build \
 	readme.gentoo-r1 systemd toolchain-funcs unpacker
 
-NV_KERNEL_MAX="5.13"
+NV_KERNEL_MAX="5.14"
 NV_URI="https://download.nvidia.com/XFree86/"
 
 DESCRIPTION="NVIDIA Accelerated Graphics Driver"
@@ -25,17 +25,18 @@ S="${WORKDIR}"
 
 LICENSE="GPL-2 MIT NVIDIA-r2 ZLIB"
 SLOT="0/${PV%%.*}"
-KEYWORDS="-* amd64"
+KEYWORDS="-* ~amd64"
 IUSE="+X +driver libglvnd static-libs +tools wayland"
 
 COMMON_DEPEND="
 	acct-group/video
 	acct-user/nvpd
-	net-libs/libtirpc
+	net-libs/libtirpc:=
 	tools? (
 		dev-libs/atk
 		dev-libs/glib:2
 		dev-libs/jansson
+		media-libs/harfbuzz:=
 		x11-libs/cairo
 		x11-libs/gdk-pixbuf:2
 		x11-libs/gtk+:3
@@ -43,8 +44,7 @@ COMMON_DEPEND="
 		x11-libs/libXext
 		x11-libs/libXxf86vm
 		x11-libs/pango
-	)
-	wayland? ( >=gui-libs/egl-wayland-1.1.7-r1 )"
+	)"
 RDEPEND="
 	${COMMON_DEPEND}
 	X? (
@@ -56,7 +56,10 @@ RDEPEND="
 			!app-eselect/eselect-opengl
 		)
 	)
-	wayland? ( >=gui-libs/egl-wayland-1.1.7-r1 )"
+	wayland? (
+		>=gui-libs/egl-wayland-1.1.7-r1
+		media-libs/libglvnd
+	)"
 DEPEND="
 	${COMMON_DEPEND}
 	static-libs? (
@@ -262,6 +265,7 @@ src_install() {
 				nvoptix
 			)
 			use amd64 && libs+=( nvidia-ngx )
+			use wayland && libs+=( nvidia-vulkan-producer )
 		fi
 
 		local lib soname
@@ -272,10 +276,10 @@ src_install() {
 			soname=$(scanelf -qF'%S#F' ${lib}) || die "Scanning ${lib} failed"
 			if [[ ${soname} && ${soname} != ${lib} ]]; then
 				ln -s ${lib} ${libdir}/${soname} || die
-				dolib.so ${libdir}/${soname}
 			fi
 			ln -s ${lib} ${libdir}/${lib%.so*}.so || die
-			dolib.so ${libdir}/{${lib},${lib%.so*}.so}
+
+			dolib.so ${libdir}/${lib%.so*}*
 		done
 
 		if ! use libglvnd; then
@@ -345,7 +349,7 @@ src_install() {
 	# install built helpers
 	nvidia-drivers_make_install modprobe
 	# allow video group to load mods and create devs (bug #505092)
-	fowners root:video /usr/bin/nvidia-modprobe
+	fowners :video /usr/bin/nvidia-modprobe
 	fperms 4710 /usr/bin/nvidia-modprobe
 
 	nvidia-drivers_make_install persistenced
@@ -465,6 +469,7 @@ pkg_postinst() {
 	fi
 
 	if [[ ${NV_LEGACY_MASK} ]]; then
+		ewarn "***WARNING***"
 		ewarn "You are installing a version of nvidia-drivers known not to work"
 		ewarn "with a GPU of the current system. If unwanted, add the mask:"
 		if [[ -d ${EROOT}/etc/portage/package.mask ]]; then
