@@ -19,7 +19,7 @@ DEPEND="
 	=dev-qt/qtcore-${QT5_PV}*:5=
 	=dev-qt/qtdeclarative-${QT5_PV}*:5=
 	=dev-qt/qtgui-${QT5_PV}*:5=[egl,libinput,vulkan=,X?]
-	media-libs/libglvnd
+	virtual/opengl
 	>=x11-libs/libxkbcommon-0.2.0
 	vulkan? ( dev-util/vulkan-headers )
 	X? (

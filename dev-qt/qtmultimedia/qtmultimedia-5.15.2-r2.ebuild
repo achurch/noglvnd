@@ -32,7 +32,7 @@ RDEPEND="
 	)
 	widgets? (
 		=dev-qt/qtwidgets-${QT5_PV}*[gles2-only=]
-		media-libs/libglvnd
+		virtual/opengl
 	)
 "
 DEPEND="${RDEPEND}
