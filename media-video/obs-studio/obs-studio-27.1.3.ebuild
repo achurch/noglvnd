@@ -56,12 +56,12 @@ DEPEND="
 	dev-qt/qtwidgets:5
 	dev-qt/qtx11extras:5
 	dev-qt/qtxml:5
-	media-libs/libglvnd
 	media-libs/x264:=
 	media-video/ffmpeg:=[x264]
 	net-misc/curl
 	sys-apps/dbus
 	sys-libs/zlib:=
+	virtual/opengl
 	virtual/udev
 	x11-libs/libX11
 	x11-libs/libXcomposite
