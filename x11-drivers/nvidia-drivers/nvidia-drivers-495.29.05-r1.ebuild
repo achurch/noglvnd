@@ -25,7 +25,7 @@ S="${WORKDIR}"
 
 LICENSE="NVIDIA-r2 BSD GPL-2 MIT ZLIB"
 SLOT="0/${PV%%.*}"
-#KEYWORDS="-* ~amd64"
+KEYWORDS="-* ~amd64"
 IUSE="+X +driver libglvnd static-libs +tools wayland"
 
 COMMON_DEPEND="
@@ -57,7 +57,7 @@ RDEPEND="
 		)
 	)
 	wayland? (
-		>=gui-libs/egl-wayland-1.1.8
+		>=gui-libs/egl-wayland-1.1.7-r1
 		media-libs/libglvnd
 		>=media-libs/mesa-21.2[gbm(+)]
 		x11-libs/libdrm
@@ -501,6 +501,18 @@ pkg_postinst() {
 			elog "This may also cause gnome-base/gdm to use a wayland session by default,"
 			elog "select 'GNOME on Xorg' if you wish to continue using it."
 		fi
+	fi
+
+	if use wayland && [[ ${REPLACING_VERSIONS} ]] &&
+		ver_test ${REPLACING_VERSIONS} -lt 495.53.02; then
+		elog
+		elog "While this version of ${PN} adds GBM support (allowing a wider"
+		elog "range of wayland compositors, such as sway), be warned it is very"
+		elog "experimental. While not essential, some features also need"
+		elog ">=egl-wayland-1.1.8 which is known to cause EGLStream regressions."
+		elog
+		elog "If lacking a cursor with wlroots, try WLR_NO_HARDWARE_CURSORS=1"
+		elog "Also of interest: __GLX_VENDOR_LIBRARY_NAME=nvidia, GBM_BACKEND=nvidia-drm"
 	fi
 
 	# Try to show this message only to users that may really need it
