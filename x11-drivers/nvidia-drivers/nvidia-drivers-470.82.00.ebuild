@@ -4,10 +4,10 @@
 EAPI=7
 
 MODULES_OPTIONAL_USE="driver"
-inherit desktop eapi8-dosym linux-mod multilib-build \
+inherit desktop linux-mod multilib-build \
 	readme.gentoo-r1 systemd toolchain-funcs unpacker
 
-NV_KERNEL_MAX="5.14"
+NV_KERNEL_MAX="5.15"
 NV_URI="https://download.nvidia.com/XFree86/"
 
 DESCRIPTION="NVIDIA Accelerated Graphics Driver"
@@ -23,7 +23,7 @@ SRC_URI="
 # nvidia-installer is unused but here for GPL-2's "distribute sources"
 S="${WORKDIR}"
 
-LICENSE="NVIDIA-r2 BSD GPL-2 MIT ZLIB"
+LICENSE="NVIDIA-r2 GPL-2 MIT ZLIB"
 SLOT="0/${PV%%.*}"
 KEYWORDS="-* ~amd64"
 IUSE="+X +driver libglvnd static-libs +tools wayland"
@@ -59,8 +59,6 @@ RDEPEND="
 	wayland? (
 		>=gui-libs/egl-wayland-1.1.7-r1
 		media-libs/libglvnd
-		>=media-libs/mesa-21.2[gbm(+)]
-		x11-libs/libdrm
 	)"
 DEPEND="
 	${COMMON_DEPEND}
@@ -80,6 +78,7 @@ DEPEND="
 	)"
 BDEPEND="
 	app-misc/pax-utils
+	sys-devel/m4
 	virtual/pkgconfig"
 
 QA_PREBUILT="lib/firmware/* opt/bin/* usr/lib*"
@@ -95,6 +94,7 @@ pkg_setup() {
 		PROC_FS
 		~DRM_KMS_HELPER
 		~SYSVIPC
+		~!DRM_SIMPLEDRM
 		~!LOCKDEP
 		~!SLUB_DEBUG_ON
 		!DEBUG_MUTEXES"
@@ -233,11 +233,12 @@ src_install() {
 			nvidia-opticalflow
 			nvidia-ptxjitcompiler
 			nvidia-tls
-			$(usex X '
+			$(usex X "
 				GLX_nvidia
 				nvidia-fbc
 				vdpau_nvidia
-			' '')
+				$(usex amd64 nvidia-ifr '')
+			" '')
 			$(usex amd64 nvidia-compiler '')
 		)
 
@@ -247,14 +248,12 @@ src_install() {
 		else
 			libs+=(
 				libnvidia-nvvm.so.4.0.0
+				nvidia-cbl
 				nvidia-cfg
-				nvidia-ngx
 				nvidia-rtcore
 				nvoptix
-				$(usex wayland '
-					libnvidia-egl-gbm.so.1.1.0
-					nvidia-vulkan-producer
-				' '')
+				$(usex amd64 nvidia-ngx '')
+				$(usex wayland nvidia-vulkan-producer '')
 			)
 		fi
 
@@ -301,7 +300,7 @@ src_install() {
 		doins "${T}"/nvidia.conf
 
 		insinto /lib/firmware/nvidia/${PV}
-		doins firmware/gsp.bin
+		use amd64 && doins firmware/gsp.bin
 
 		# used for gpu verification with binpkgs (not kept)
 		insinto /usr/share/nvidia
@@ -323,13 +322,6 @@ src_install() {
 		doins nvidia_icd.json
 		insinto /usr/share/vulkan/implicit_layer.d
 		doins nvidia_layers.json
-	fi
-
-	if use wayland; then
-		insinto /usr/share/egl/egl_external_platform.d
-		doins 15_nvidia_gbm.json
-
-		dosym8 -r /usr/$(get_libdir)/{libnvidia-allocator.so.1,gbm/nvidia-drm_gbm.so}
 	fi
 
 	if use libglvnd; then
@@ -384,8 +376,6 @@ src_install() {
 
 	doexe nvidia-debugdump
 	dobin nvidia-bug-report.sh
-
-	doexe nvidia-ngx-updater
 
 	doexe nvidia-smi
 	doman nvidia-smi.1
@@ -496,23 +486,6 @@ pkg_postinst() {
 		elog
 		elog "If you experience issues, please comment out the option from nvidia.conf."
 		elog "Of note, may possibly cause issues with SLI and Reverse PRIME."
-		if has_version "gnome-base/gdm[wayland]"; then
-			elog
-			elog "This may also cause gnome-base/gdm to use a wayland session by default,"
-			elog "select 'GNOME on Xorg' if you wish to continue using it."
-		fi
-	fi
-
-	if use wayland && [[ ${REPLACING_VERSIONS} ]] &&
-		ver_test ${REPLACING_VERSIONS} -lt 495.53.02; then
-		elog
-		elog "While this version of ${PN} adds GBM support (allowing a wider"
-		elog "range of wayland compositors, such as sway), be warned it is very"
-		elog "experimental. While not essential, some features also need"
-		elog ">=egl-wayland-1.1.8 which is known to cause EGLStream regressions."
-		elog
-		elog "If lacking a cursor with wlroots, try WLR_NO_HARDWARE_CURSORS=1"
-		elog "Also of interest: __GLX_VENDOR_LIBRARY_NAME=nvidia, GBM_BACKEND=nvidia-drm"
 	fi
 
 	# Try to show this message only to users that may really need it
