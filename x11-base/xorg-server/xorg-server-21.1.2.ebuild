@@ -18,7 +18,8 @@ IUSE_SERVERS="kdrive xephyr xnest xorg xvfb"
 IUSE="${IUSE_SERVERS} debug +elogind libglvnd minimal selinux suid systemd test +udev unwind xcsecurity"
 RESTRICT="!test? ( test )"
 
-CDEPEND="libglvnd? (
+CDEPEND="
+	libglvnd? (
 		media-libs/libglvnd[X]
 		!app-eselect/eselect-opengl
 		!!x11-drivers/nvidia-drivers[-libglvnd(-)]
