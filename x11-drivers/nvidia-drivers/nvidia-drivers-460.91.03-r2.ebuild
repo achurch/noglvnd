@@ -1,4 +1,4 @@
-# Copyright 1999-2021 Gentoo Authors
+# Copyright 1999-2022 Gentoo Authors
 # Distributed under the terms of the GNU General Public License v2
 
 EAPI=7
@@ -7,23 +7,23 @@ MODULES_OPTIONAL_USE="driver"
 inherit desktop flag-o-matic linux-mod multilib readme.gentoo-r1 \
 	systemd toolchain-funcs unpacker
 
-NV_KERNEL_MAX="5.15"
+NV_KERNEL_MAX="5.13"
+NV_URI="https://download.nvidia.com/XFree86/"
 
 DESCRIPTION="NVIDIA Accelerated Graphics Driver"
 HOMEPAGE="https://www.nvidia.com/download/index.aspx"
 SRC_URI="
-	amd64? ( https://us.download.nvidia.com/XFree86/Linux-x86_64/${PV}/NVIDIA-Linux-x86_64-${PV}.run )
-	arm64? ( https://us.download.nvidia.com/XFree86/aarch64/${PV}/NVIDIA-Linux-aarch64-${PV}.run )
-	$(printf "https://github.com/NVIDIA/%s/archive/refs/tags/${PV}.tar.gz -> %s-${PV}.tar.gz " \
+	amd64? ( ${NV_URI}Linux-x86_64/${PV}/NVIDIA-Linux-x86_64-${PV}.run )
+	arm64? ( ${NV_URI}Linux-aarch64/${PV}/NVIDIA-Linux-aarch64-${PV}.run )
+	$(printf "${NV_URI}%s/%s-${PV}.tar.bz2 " \
 		nvidia-{installer,modprobe,persistenced,settings,xconfig}{,})"
 # nvidia-installer is unused but here for GPL-2's "distribute sources"
 S="${WORKDIR}"
 
 LICENSE="NVIDIA-r2 BSD BSD-2 GPL-2 MIT ZLIB curl openssl"
 SLOT="0/${PV%%.*}"
-KEYWORDS="-* ~amd64"
-IUSE="+X abi_x86_32 abi_x86_64 +driver libglvnd persistenced static-libs +tools wayland"
-RESTRICT="bindist"
+KEYWORDS="-* amd64"
+IUSE="+X abi_x86_32 abi_x86_64 +driver libglvnd persistenced static-libs +tools"
 
 COMMON_DEPEND="
 	acct-group/video
@@ -54,12 +54,6 @@ RDEPEND="
 			media-libs/libglvnd[X,abi_x86_32(-)?]
 			!app-eselect/eselect-opengl
 		)
-	)
-	wayland? (
-		>=gui-libs/egl-wayland-1.1.7-r1
-		libglvnd? ( media-libs/libglvnd )
-		>=media-libs/mesa-21.2[gbm(+)]
-		x11-libs/libdrm
 	)"
 DEPEND="
 	${COMMON_DEPEND}
@@ -78,8 +72,9 @@ DEPEND="
 BDEPEND="
 	sys-devel/m4
 	virtual/pkgconfig"
+PDEPEND="X? ( <x11-base/xorg-server-1.21 )"
 
-QA_PREBUILT="lib/firmware/* opt/bin/* usr/lib*"
+QA_PREBUILT="opt/bin/* usr/lib*"
 
 PATCHES=(
 	"${FILESDIR}"/nvidia-modprobe-390.141-uvm-perms.patch
@@ -97,7 +92,6 @@ pkg_setup() {
 		~SYSVIPC
 		~!DRM_SIMPLEDRM
 		~!LOCKDEP
-		~!SLUB_DEBUG_ON
 		!DEBUG_MUTEXES"
 	local ERROR_DRM_KMS_HELPER="CONFIG_DRM_KMS_HELPER: is not set but needed for Xorg auto-detection
 	of drivers (no custom config), and for wayland / nvidia-drm.modeset=1.
@@ -112,7 +106,6 @@ pkg_setup() {
 		nvidia(video:kernel)
 		nvidia-drm(video:kernel)
 		nvidia-modeset(video:kernel)
-		nvidia-peermem(video:kernel)
 		nvidia-uvm(video:kernel)"
 
 	linux-mod_pkg_setup
@@ -164,20 +157,6 @@ src_prepare() {
 	sed 's/__USER__/nvpd/' \
 		nvidia-persistenced/init/systemd/nvidia-persistenced.service.template \
 		> "${T}"/nvidia-persistenced.service || die
-
-	# enable nvidia-drm.modeset=1 by default with USE=wayland
-	cp "${FILESDIR}"/nvidia-470.conf "${T}"/nvidia.conf || die
-	use !wayland || sed -i '/^#.*modeset=1$/s/^#//' "${T}"/nvidia.conf || die
-
-	# temporary workaround for dbus powerd spam in 495 series
-	# (jz -> jmp after nvidia.powerd.server, need RESTRICT=bindist)
-	# https://forums.developer.nvidia.com/t/bug-nvidia-v495-29-05-driver-spamming-dbus-enabled-applications-with-invalid-messages/192892/14
-	if use amd64; then
-		sed 's/\x0f\x84\[\x01\x00\x00\x4c\x8d/\xe9\x5c\x01\x00\x00\x00\x4c\x8d/' \
-			-i libnvidia-glcore.so.495.46 || die
-		sed 's/\x0f\x84\x65\x01\x00\x00\x83\xec\x08\x89/\xe9\x66\x01\x00\x00\x00\x83\xec\x08\x89/' \
-			-i 32/libnvidia-glcore.so.495.46 || die
-	fi
 }
 
 src_compile() {
@@ -217,11 +196,8 @@ src_install() {
 		[APPLICATION_PROFILE]=/usr/share/nvidia
 		[CUDA_ICD]=/etc/OpenCL/vendors
 		[EGL_EXTERNAL_PLATFORM_JSON]=/usr/share/egl/egl_external_platform.d
-		[FIRMWARE]=/lib/firmware/nvidia/${PV}
-		[GBM_BACKEND_LIB_SYMLINK]=/usr/${libdir}/gbm
 		[GLVND_EGL_ICD_JSON]=/usr/share/glvnd/egl_vendor.d
 		[VULKAN_ICD_JSON]=/usr/share/vulkan
-		[WINE_LIB]=/usr/${libdir}/nvidia/wine
 		[XORG_OUTPUTCLASS_CONFIG]=/usr/share/X11/xorg.conf.d
 
 		[GLX_MODULE_SHARED_LIB]=/usr/${libdir}/xorg/modules/extensions
@@ -232,17 +208,14 @@ src_install() {
 	local skip_files=(
 		$(usex X '' '
 			libGLX_nvidia libglxserver_nvidia
+			libnvidia-ifr
 			nvidia_icd.json nvidia_layers.json')
-		$(usex wayland '' '
-			libnvidia-egl-gbm 15_nvidia_gbm
-			libnvidia-vulkan-producer')
 		libGLX_indirect # non-glvnd unused fallback
 		libnvidia-gtk nvidia-{settings,xconfig} # built from source
 		libnvidia-egl-wayland 10_nvidia_wayland # gui-libs/egl-wayland
 	)
 	local skip_modules=(
 		$(usex X '' 'nvfbc vdpau xdriver')
-		$(usex driver '' 'gsp')
 		installer nvpd # handled separately / built from source
 	)
 	local skip_types=(
@@ -290,7 +263,7 @@ https://wiki.gentoo.org/wiki/NVIDIA/nvidia-drivers"
 		linux-mod_src_install
 
 		insinto /etc/modprobe.d
-		doins "${T}"/nvidia.conf
+		newins "${FILESDIR}"/nvidia-470.conf nvidia.conf
 
 		# used for gpu verification with binpkgs (not kept, see pkg_preinst)
 		insinto /usr/share/nvidia
@@ -341,7 +314,6 @@ https://wiki.gentoo.org/wiki/NVIDIA/nvidia-drivers"
 				gzip -dc ${m[0]} | newman - ${m[0]%.gz}; assert
 				continue
 			;;
-			GBM_BACKEND_LIB_SYMLINK) m[4]=../${m[4]};; # missing ../
 			VDPAU_SYMLINK) m[4]=vdpau/; m[5]=${m[5]#vdpau/};; # .so to vdpau/
 		esac
 
@@ -368,7 +340,7 @@ https://wiki.gentoo.org/wiki/NVIDIA/nvidia-drivers"
 			dosym ${m[4]} ${into}/${m[0]}
 			continue
 		fi
-		[[ ${m[0]} =~ ^libnvidia-ngx.so|^libnvidia-egl-gbm.so ]] &&
+		[[ ${m[0]} =~ ^libnvidia-ngx.so ]] &&
 			dosym ${m[0]} ${into}/${m[0]%.so*}.so.1 # soname not in .manifest
 
 		printf -v m[1] %o $((m[1] | 0200)) # 444->644
@@ -379,16 +351,15 @@ https://wiki.gentoo.org/wiki/NVIDIA/nvidia-drivers"
 
 	# MODULE:installer non-skipped extras
 	exeinto /lib/systemd/system-sleep
-	doexe systemd/system-sleep/nvidia
-	dobin systemd/nvidia-sleep.sh
-	systemd_dounit systemd/system/nvidia-{hibernate,resume,suspend}.service
+	doexe nvidia
+	dobin nvidia-sleep.sh
+	systemd_dounit nvidia-{hibernate,resume,suspend}.service
 
 	dobin nvidia-bug-report.sh
 }
 
 pkg_preinst() {
 	has_version "${CATEGORY}/${PN}[abi_x86_32]" && NV_HAD_ABI32=
-	has_version "${CATEGORY}/${PN}[wayland]" && NV_HAD_WAYLAND=
 
 	use driver || return
 	linux-mod_pkg_preinst
@@ -430,12 +401,6 @@ pkg_postinst() {
 		use driver && ewarn "The easiest way to fix this is usually to reboot."
 	fi
 
-	if [[ $(</proc/cmdline) == *slub_debug=[!-]* ]]; then
-		ewarn "Detected that the current kernel command line is using 'slub_debug=',"
-		ewarn "this may lead to system instability/freezes with this version of"
-		ewarn "${PN}. Bug: https://bugs.gentoo.org/796329"
-	fi
-
 	if [[ -v NV_LEGACY_MASK ]]; then
 		ewarn
 		ewarn "***WARNING***"
@@ -457,19 +422,4 @@ pkg_postinst() {
 		elog "use nvidia-drivers for acceleration without it (e.g. commonly used"
 		elog "with app-emulation/wine-* or steam). Re-enable if needed."
 	fi
-
-	if use wayland && use driver && [[ ! -v NV_HAD_WAYLAND ]]; then
-		elog
-		elog "With USE=wayland, this version of ${PN} sets nvidia-drm.modeset=1"
-		elog "in '${EROOT}/etc/modprobe.d/nvidia.conf'. This feature is considered"
-		elog "experimental but is required for wayland."
-		elog
-		elog "If you experience issues, either disable wayland or edit nvidia.conf."
-		elog "Of note, may possibly cause issues with SLI and Reverse PRIME."
-	fi
-
-	ewarn
-	ewarn "This revision of ${PN} is applying a binary patch to prevent heavy"
-	ewarn "dbus spamming while using OpenGL. If you experience issues, please try to"
-	ewarn "mask =${CATEGORY}/${PN}-${PVR} to use NVIDIA's intended version."
 }

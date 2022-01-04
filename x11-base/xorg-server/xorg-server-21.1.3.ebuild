@@ -14,16 +14,12 @@ if [[ ${PV} != 9999* ]]; then
 	KEYWORDS="~alpha ~amd64 ~arm ~arm64 ~hppa ~ia64 ~mips ~ppc ~ppc64 ~riscv ~s390 ~sparc ~x86 ~amd64-linux ~x86-linux"
 fi
 
-IUSE_SERVERS="kdrive xephyr xnest xorg xvfb"
-IUSE="${IUSE_SERVERS} debug +elogind libglvnd minimal selinux suid systemd test +udev unwind xcsecurity"
+IUSE_SERVERS="xephyr xnest xorg xvfb"
+IUSE="${IUSE_SERVERS} debug +elogind minimal selinux suid systemd test +udev unwind xcsecurity"
 RESTRICT="!test? ( test )"
 
-CDEPEND="libglvnd? (
-		media-libs/libglvnd[X]
-		!app-eselect/eselect-opengl
-		!!x11-drivers/nvidia-drivers[-libglvnd(-)]
-	)
-	!libglvnd? ( >=app-eselect/eselect-opengl-1.3.0	)
+CDEPEND="
+	media-libs/libglvnd[X]
 	dev-libs/libbsd
 	dev-libs/openssl:0=
 	>=x11-apps/iceauth-1.0.2
@@ -69,6 +65,7 @@ CDEPEND="libglvnd? (
 		sys-auth/elogind[pam]
 		sys-auth/pambase[elogind]
 	)
+	!!x11-drivers/nvidia-drivers[-libglvnd(+)]
 "
 DEPEND="${CDEPEND}
 	>=x11-base/xorg-proto-2021.4.99.2
@@ -177,15 +174,6 @@ src_install() {
 	# install the @x11-module-rebuild set for Portage
 	insinto /usr/share/portage/config/sets
 	newins "${FILESDIR}"/xorg-sets.conf xorg.conf
-}
-
-pkg_postinst() {
-	if ! use minimal; then
-		# sets up libGL and DRI2 symlinks if needed (ie, on a fresh install)
-		if ! use libglvnd; then
-			eselect opengl set xorg-x11 --use-old
-		fi
-	fi
 }
 
 pkg_postrm() {

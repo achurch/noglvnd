@@ -1,4 +1,4 @@
-# Copyright 1999-2021 Gentoo Authors
+# Copyright 1999-2022 Gentoo Authors
 # Distributed under the terms of the GNU General Public License v2
 
 EAPI=7
@@ -21,7 +21,7 @@ S="${WORKDIR}"
 
 LICENSE="NVIDIA-r2 BSD BSD-2 GPL-2 MIT ZLIB curl openssl"
 SLOT="0/${PV%%.*}"
-KEYWORDS="-* ~amd64"
+#KEYWORDS="-* ~amd64"
 IUSE="+X abi_x86_32 abi_x86_64 +driver libglvnd persistenced static-libs +tools wayland"
 RESTRICT="bindist"
 
@@ -56,10 +56,9 @@ RDEPEND="
 		)
 	)
 	wayland? (
+		gui-libs/egl-gbm
 		>=gui-libs/egl-wayland-1.1.7-r1
-		libglvnd? ( media-libs/libglvnd )
-		>=media-libs/mesa-21.2[gbm(+)]
-		x11-libs/libdrm
+		media-libs/libglvnd
 	)"
 DEPEND="
 	${COMMON_DEPEND}
@@ -233,11 +232,10 @@ src_install() {
 		$(usex X '' '
 			libGLX_nvidia libglxserver_nvidia
 			nvidia_icd.json nvidia_layers.json')
-		$(usex wayland '' '
-			libnvidia-egl-gbm 15_nvidia_gbm
-			libnvidia-vulkan-producer')
+		$(usex wayland '' 'libnvidia-vulkan-producer')
 		libGLX_indirect # non-glvnd unused fallback
 		libnvidia-gtk nvidia-{settings,xconfig} # built from source
+		libnvidia-egl-gbm 15_nvidia_gbm # gui-libs/egl-gbm
 		libnvidia-egl-wayland 10_nvidia_wayland # gui-libs/egl-wayland
 	)
 	local skip_modules=(

@@ -3,12 +3,12 @@
 
 EAPI=7
 
-PYTHON_COMPAT=( python3_{7..9} )
+PYTHON_COMPAT=( python3_{8,9} )
 PYTHON_REQ_USE="sqlite"  # bug 572440
-WANT_AUTOCONF="2.1"
+WANT_AUTOCONF="2.5"
 WX_GTK_VER="3.0-gtk3"
 
-inherit autotools desktop flag-o-matic python-single-r1 toolchain-funcs wxwidgets xdg
+inherit autotools desktop python-single-r1 toolchain-funcs wxwidgets xdg
 
 MY_PM=${PN}$(ver_cut 1-2 ${PV})
 MY_PM=${MY_PM/.}
@@ -33,10 +33,10 @@ RDEPEND="
 		dev-python/numpy[${PYTHON_USEDEP}]
 		dev-python/six[${PYTHON_USEDEP}]
 	')
-	sci-libs/gdal
-	sys-libs/gdbm
+	sci-libs/gdal:=
+	sys-libs/gdbm:=
 	sys-libs/ncurses:0=
-	sci-libs/proj
+	sci-libs/proj:=
 	sci-libs/xdrfile
 	sys-libs/zlib
 	blas? (
@@ -44,11 +44,11 @@ RDEPEND="
 		virtual/blas[eselect-ldso(+)]
 	)
 	fftw? ( sci-libs/fftw:3.0= )
-	geos? ( sci-libs/geos )
+	geos? ( sci-libs/geos:= )
 	lapack? ( virtual/lapack[eselect-ldso(+)] )
 	liblas? ( sci-geosciences/liblas )
 	mysql? ( dev-db/mysql-connector-c:= )
-	netcdf? ( sci-libs/netcdf )
+	netcdf? ( sci-libs/netcdf:= )
 	odbc? ( dev-db/unixODBC )
 	opencl? ( virtual/opencl )
 	opengl? ( virtual/opengl )
@@ -81,9 +81,7 @@ S="${WORKDIR}/${MY_P}"
 
 PATCHES=(
 	# bug 746590
-	"${FILESDIR}/${PN}-7.8-flock.patch"
-	# bug 792801
-	"${FILESDIR}/${PN}-7.8.5-bool.patch"
+	"${FILESDIR}/${PN}-flock.patch"
 )
 
 pkg_setup() {
@@ -192,9 +190,8 @@ src_compile() {
 
 src_install() {
 	emake DESTDIR="${ED}" \
-		INST_DIR="${ED}"/usr/$(get_libdir)/${MY_PM} \
-		prefix="${ED}"/usr/ BINDIR="${ED}"/usr/bin \
-		PREFIX="${ED}"/usr/ \
+		INST_DIR=/usr/$(get_libdir)/${MY_PM} \
+		prefix=/usr/ BINDIR=/usr/bin \
 		install
 
 	pushd "${ED}"/usr/$(get_libdir)/${MY_PM} >/dev/null || die
@@ -238,12 +235,16 @@ GISBASE = os.path.normpath(\"${gisbase}\"):" \
 	# get proper fonts path for fontcap
 	sed -i \
 		-e "s|${ED}/usr/${MY_PM}|${EPREFIX}/usr/$(get_libdir)/${MY_PM}|" \
-		"${ED}"/usr/$(get_libdir)/${MY_PM}/etc/fontcap || die
+		"${ED}"${gisbase}/etc/fontcap || die
 
 	# set proper python interpreter
-	sed -e "s:os.environ\['GRASS_PYTHON'\] = \"python3\":\
-os.environ\['GRASS_PYTHON'\] = \"${EPYTHON}\":" \
+	sed -e "s:os.environ\[\"GRASS_PYTHON\"\] = \"python3\":\
+os.environ\[\"GRASS_PYTHON\"\] = \"${EPYTHON}\":" \
 		-i "${ED}"/usr/bin/${MY_PM} || die
+
+	# set proper GISDBASE directory path in the demolocation .grassrc78 file
+	sed -e "s:GISDBASE\:.*$:GISDBASE\: ${gisbase}:" \
+		-i "${ED}"${gisbase}/demolocation/.grassrc78 || die
 
 	if use X; then
 		local GUI="-gui"
