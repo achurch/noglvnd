@@ -7,26 +7,26 @@ MODULES_OPTIONAL_USE="driver"
 inherit desktop flag-o-matic linux-mod multilib readme.gentoo-r1 \
 	systemd toolchain-funcs unpacker
 
-NV_KERNEL_MAX="5.15"
+NV_KERNEL_MAX="5.16"
 
 DESCRIPTION="NVIDIA Accelerated Graphics Driver"
 HOMEPAGE="https://www.nvidia.com/download/index.aspx"
 SRC_URI="
 	amd64? ( https://us.download.nvidia.com/XFree86/Linux-x86_64/${PV}/NVIDIA-Linux-x86_64-${PV}.run )
 	arm64? ( https://us.download.nvidia.com/XFree86/aarch64/${PV}/NVIDIA-Linux-aarch64-${PV}.run )
-	$(printf "https://github.com/NVIDIA/%s/archive/refs/tags/${PV}.tar.gz -> %s-${PV}.tar.gz " \
+	$(printf "https://download.nvidia.com/XFree86/%s/%s-${PV}.tar.bz2 " \
 		nvidia-{installer,modprobe,persistenced,settings,xconfig}{,})"
 # nvidia-installer is unused but here for GPL-2's "distribute sources"
 S="${WORKDIR}"
 
 LICENSE="NVIDIA-r2 BSD BSD-2 GPL-2 MIT ZLIB curl openssl"
 SLOT="0/${PV%%.*}"
-#KEYWORDS="-* ~amd64"
+KEYWORDS="-* ~amd64"
 IUSE="+X abi_x86_32 abi_x86_64 +driver libglvnd persistenced static-libs +tools wayland"
-RESTRICT="bindist"
 
 COMMON_DEPEND="
 	acct-group/video
+	X? ( x11-libs/libpciaccess )
 	persistenced? (
 		acct-user/nvpd
 		net-libs/libtirpc:=
@@ -58,7 +58,7 @@ RDEPEND="
 	wayland? (
 		gui-libs/egl-gbm
 		>=gui-libs/egl-wayland-1.1.7-r1
-		media-libs/libglvnd
+		libglvnd? ( media-libs/libglvnd )
 	)"
 DEPEND="
 	${COMMON_DEPEND}
@@ -103,7 +103,10 @@ pkg_setup() {
 	Cannot be directly selected in the kernel's menuconfig, and may need
 	selection of a DRM device even if unused, e.g. CONFIG_DRM_AMDGPU=m or
 	DRM_I915=y, DRM_NOUVEAU=m also acceptable if a module and not built-in.
-	Note: DRM_SIMPLEDRM may cause issues and is better disabled for now."
+	Note: DRM_SIMPLEDRM may cause issues and may be better disabled for now."
+	local ERROR_DRM_SIMPLEDRM="CONFIG_DRM_SIMPLEDRM: is set but may or may not lead to a blank
+	console with a NVIDIA GPU. If you experience issues, try
+	disabling it and instead use FB_EFI or FB_SIMPLE for now."
 
 	use amd64 && kernel_is -ge 5 8 && CONFIG_CHECK+=" X86_PAT" #817764
 
@@ -137,8 +140,8 @@ pkg_setup() {
 	if kernel_is -gt ${NV_KERNEL_MAX/./ }; then
 		ewarn "Kernel ${KV_MAJOR}.${KV_MINOR} is either known to break this version of ${PN}"
 		ewarn "or was not tested with it. It is recommended to use one of:"
-		ewarn "  <=sys-kernel/gentoo-kernel-${NV_KERNEL_MAX}"
-		ewarn "  <=sys-kernel/gentoo-sources-${NV_KERNEL_MAX}"
+		ewarn "  <=sys-kernel/gentoo-kernel-${NV_KERNEL_MAX}.x"
+		ewarn "  <=sys-kernel/gentoo-sources-${NV_KERNEL_MAX}.x"
 		ewarn "You are free to try or use /etc/portage/patches, but support will"
 		ewarn "not be given and issues wait until NVIDIA releases a fixed version."
 		ewarn
@@ -160,23 +163,15 @@ src_prepare() {
 	sed 's/defined(CONFIG_DRM/defined(CONFIG_DRM_KMS_HELPER/g' \
 		-i kernel/conftest.sh || die
 
+	# adjust service files
 	sed 's/__USER__/nvpd/' \
 		nvidia-persistenced/init/systemd/nvidia-persistenced.service.template \
 		> "${T}"/nvidia-persistenced.service || die
+	sed -i "s|/usr|${EPREFIX}/opt|" systemd/system/nvidia-powerd.service || die
 
 	# enable nvidia-drm.modeset=1 by default with USE=wayland
 	cp "${FILESDIR}"/nvidia-470.conf "${T}"/nvidia.conf || die
 	use !wayland || sed -i '/^#.*modeset=1$/s/^#//' "${T}"/nvidia.conf || die
-
-	# temporary workaround for dbus powerd spam in 495 series
-	# (jz -> jmp after nvidia.powerd.server, need RESTRICT=bindist)
-	# https://forums.developer.nvidia.com/t/bug-nvidia-v495-29-05-driver-spamming-dbus-enabled-applications-with-invalid-messages/192892/14
-	if use amd64; then
-		sed 's/\x0f\x84\[\x01\x00\x00\x4c\x8d/\xe9\x5c\x01\x00\x00\x00\x4c\x8d/' \
-			-i libnvidia-glcore.so.495.46 || die
-		sed 's/\x0f\x84\x65\x01\x00\x00\x83\xec\x08\x89/\xe9\x66\x01\x00\x00\x00\x83\xec\x08\x89/' \
-			-i 32/libnvidia-glcore.so.495.46 || die
-	fi
 }
 
 src_compile() {
@@ -379,7 +374,10 @@ https://wiki.gentoo.org/wiki/NVIDIA/nvidia-drivers"
 	exeinto /lib/systemd/system-sleep
 	doexe systemd/system-sleep/nvidia
 	dobin systemd/nvidia-sleep.sh
-	systemd_dounit systemd/system/nvidia-{hibernate,resume,suspend}.service
+	systemd_dounit systemd/system/nvidia-{hibernate,powerd,resume,suspend}.service
+
+	insinto /usr/share/dbus-1/system.d
+	doins nvidia-dbus.conf
 
 	dobin nvidia-bug-report.sh
 }
@@ -465,9 +463,4 @@ pkg_postinst() {
 		elog "If you experience issues, either disable wayland or edit nvidia.conf."
 		elog "Of note, may possibly cause issues with SLI and Reverse PRIME."
 	fi
-
-	ewarn
-	ewarn "This revision of ${PN} is applying a binary patch to prevent heavy"
-	ewarn "dbus spamming while using OpenGL. If you experience issues, please try to"
-	ewarn "mask =${CATEGORY}/${PN}-${PVR} to use NVIDIA's intended version."
 }
