@@ -1,18 +1,18 @@
-# Copyright 1999-2021 Gentoo Authors
+# Copyright 1999-2022 Gentoo Authors
 # Distributed under the terms of the GNU General Public License v2
 
 EAPI=8
 
-KDE_ORG_COMMIT=eb422ab5e07498a7a8d086f6a942ee35ab3c9776
+KDE_ORG_COMMIT=4644d51f4b52e83fc1b4d02b380d80d9d57e76fa
 inherit qt5-build
 
 DESCRIPTION="Wayland platform plugin for Qt"
-SLOT=5/${QT5_PV} # bug 815646
 
 if [[ ${QT5_BUILD_TYPE} == release ]]; then
-	KEYWORDS="amd64 arm arm64 ~hppa ppc ppc64 ~riscv ~sparc x86"
+	KEYWORDS="~amd64 ~arm ~arm64 ~hppa ~ppc ~ppc64 ~riscv ~sparc ~x86"
 fi
 
+SLOT=5/${QT5_PV} # bug 815646
 IUSE="vulkan X"
 
 DEPEND="
@@ -32,10 +32,6 @@ RDEPEND="${DEPEND}"
 BDEPEND="
 	dev-util/wayland-scanner
 "
-
-PATCHES=(
-	"${FILESDIR}"/${P}-fix-crash-when-iterating-through-outputs.patch # KDE-bug 438839
-)
 
 src_configure() {
 	local myqmakeargs=(
