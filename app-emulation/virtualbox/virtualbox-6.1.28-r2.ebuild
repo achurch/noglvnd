@@ -43,7 +43,10 @@ COMMON_DEPEND="
 		x11-libs/libXext
 		x11-libs/libXmu
 		x11-libs/libXt
-		opengl? ( virtual/opengl )
+		opengl? (
+			virtual/glu
+			virtual/opengl
+		)
 		qt5? (
 			dev-qt/qtcore:5
 			dev-qt/qtgui:5

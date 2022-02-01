@@ -43,7 +43,10 @@ COMMON_DEPEND="
 		x11-libs/libXext
 		x11-libs/libXmu
 		x11-libs/libXt
-		opengl? ( virtual/opengl )
+		opengl? (
+			virtual/glu
+			virtual/opengl
+		)
 		qt5? (
 			dev-qt/qtcore:5
 			dev-qt/qtgui:5
@@ -181,7 +184,8 @@ src_prepare() {
 
 	if ! use pch ; then
 		# bug #753323
-		echo -e "VBOX_WITHOUT_PRECOMPILED_HEADERS=1\r\n" >> LocalConfig.kmk || die
+		printf '\n%s\n' "VBOX_WITHOUT_PRECOMPILED_HEADERS=1" \
+			>> LocalConfig.kmk || die
 	fi
 
 	# Respect LDFLAGS
