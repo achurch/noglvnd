@@ -53,6 +53,7 @@ LIBDRM_DEPSTRING=">=x11-libs/libdrm-2.4.109"
 RDEPEND="
 	>=dev-libs/expat-2.1.0-r3:=[${MULTILIB_USEDEP}]
 	>=sys-libs/zlib-1.2.8[${MULTILIB_USEDEP}]
+	unwind? ( sys-libs/libunwind[${MULTILIB_USEDEP}] )
 	libglvnd? (
 		>=media-libs/libglvnd-1.3.2[X?,${MULTILIB_USEDEP}]
 		!app-eselect/eselect-opengl
@@ -60,7 +61,6 @@ RDEPEND="
 	!libglvnd? (
 		>=app-eselect/eselect-opengl-1.3.0
 	)
-	unwind? ( sys-libs/libunwind[${MULTILIB_USEDEP}] )
 	llvm? (
 		video_cards_radeonsi? (
 			virtual/libelf:0=[${MULTILIB_USEDEP}]
@@ -440,7 +440,6 @@ multilib_src_configure() {
 		$(meson_feature llvm)
 		$(meson_feature lm-sensors lmsensors)
 		$(meson_use osmesa)
-		$(meson_use libglvnd glvnd)
 		$(meson_use selinux)
 		$(meson_feature unwind libunwind)
 		$(meson_feature zstd)

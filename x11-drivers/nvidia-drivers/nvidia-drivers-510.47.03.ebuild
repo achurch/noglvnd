@@ -8,13 +8,14 @@ inherit desktop flag-o-matic linux-mod multilib readme.gentoo-r1 \
 	systemd toolchain-funcs unpacker
 
 NV_KERNEL_MAX="5.16"
+NV_URI="https://download.nvidia.com/XFree86/"
 
 DESCRIPTION="NVIDIA Accelerated Graphics Driver"
 HOMEPAGE="https://www.nvidia.com/download/index.aspx"
 SRC_URI="
-	amd64? ( https://us.download.nvidia.com/XFree86/Linux-x86_64/${PV}/NVIDIA-Linux-x86_64-${PV}.run )
-	arm64? ( https://us.download.nvidia.com/XFree86/aarch64/${PV}/NVIDIA-Linux-aarch64-${PV}.run )
-	$(printf "https://download.nvidia.com/XFree86/%s/%s-${PV}.tar.bz2 " \
+	amd64? ( ${NV_URI}Linux-x86_64/${PV}/NVIDIA-Linux-x86_64-${PV}.run )
+	arm64? ( ${NV_URI}Linux-aarch64/${PV}/NVIDIA-Linux-aarch64-${PV}.run )
+	$(printf "${NV_URI}%s/%s-${PV}.tar.bz2 " \
 		nvidia-{installer,modprobe,persistenced,settings,xconfig}{,})"
 # nvidia-installer is unused but here for GPL-2's "distribute sources"
 S="${WORKDIR}"
@@ -26,6 +27,7 @@ IUSE="+X abi_x86_32 abi_x86_64 +driver libglvnd persistenced static-libs +tools 
 
 COMMON_DEPEND="
 	acct-group/video
+	sys-libs/glibc
 	X? ( x11-libs/libpciaccess )
 	persistenced? (
 		acct-user/nvpd
@@ -162,7 +164,7 @@ src_prepare() {
 	sed 's/__USER__/nvpd/' \
 		nvidia-persistenced/init/systemd/nvidia-persistenced.service.template \
 		> "${T}"/nvidia-persistenced.service || die
-	sed -i "s|/usr|${EPREFIX}/opt|" systemd/system/nvidia-powerd.service || die
+	use !amd64 || sed -i "s|/usr|${EPREFIX}/opt|" systemd/system/nvidia-powerd.service || die
 
 	# enable nvidia-drm.modeset=1 by default with USE=wayland
 	cp "${FILESDIR}"/nvidia-470.conf "${T}"/nvidia.conf || die
@@ -236,7 +238,7 @@ src_install() {
 	local skip_types=(
 		$(usex libglvnd 'GLVND_LIB GLVND_SYMLINK EGL_CLIENT.\* GLX_CLIENT.\*' 'GLVND_EGL_ICD_JSON')
 		OPENCL_WRAPPER.\* # virtual/opencl
-		DOCUMENTATION DOT_DESKTOP .\*_SRC DKMS_CONF # handled separately / unused
+		DOCUMENTATION DOT_DESKTOP .\*_SRC DKMS_CONF SYSTEMD_UNIT # handled separately / unused
 	)
 
 	local DOCS=(
@@ -369,12 +371,17 @@ https://wiki.gentoo.org/wiki/NVIDIA/nvidia-drivers"
 	exeinto /lib/systemd/system-sleep
 	doexe systemd/system-sleep/nvidia
 	dobin systemd/nvidia-sleep.sh
-	systemd_dounit systemd/system/nvidia-{hibernate,powerd,resume,suspend}.service
-
-	insinto /usr/share/dbus-1/system.d
-	doins nvidia-dbus.conf
+	systemd_dounit systemd/system/nvidia-{hibernate,resume,suspend}.service
 
 	dobin nvidia-bug-report.sh
+
+	# MODULE:powerd extras
+	if use amd64; then
+		systemd_dounit systemd/system/nvidia-powerd.service
+
+		insinto /usr/share/dbus-1/system.d
+		doins nvidia-dbus.conf
+	fi
 }
 
 pkg_preinst() {

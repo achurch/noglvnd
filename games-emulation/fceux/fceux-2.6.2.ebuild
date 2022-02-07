@@ -10,7 +10,7 @@ DESCRIPTION="Portable Famicom/NES emulator, an evolution of the original FCE Ult
 HOMEPAGE="https://fceux.com/"
 SRC_URI="mirror://sourceforge/fceultra/${P}.tar.gz"
 
-LICENSE="GPL-2"
+LICENSE="GPL-2+"
 SLOT="0"
 KEYWORDS="~amd64 ~x86"
 IUSE="ffmpeg x264 x265"
