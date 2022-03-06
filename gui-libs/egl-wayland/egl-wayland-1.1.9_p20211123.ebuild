@@ -23,7 +23,7 @@ DEPEND="
 	${RDEPEND}
 	dev-libs/wayland-protocols
 	gui-libs/eglexternalplatform
-	>=media-libs/libglvnd-1.3.4"
+	virtual/opengl"
 BDEPEND="dev-util/wayland-scanner"
 
 PATCHES=(
