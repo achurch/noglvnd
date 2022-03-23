@@ -9,19 +9,29 @@ WX_GTK_VER="3.0-gtk3"
 
 inherit autotools desktop python-single-r1 toolchain-funcs wxwidgets xdg
 
-MY_PM=${PN}$(ver_cut 1-2 ${PV})
-MY_PM=${MY_PM/.}
-MY_P=${P/_rc/RC}
-
 DESCRIPTION="A free GIS with raster and vector functionality, as well as 3D vizualization"
 HOMEPAGE="https://grass.osgeo.org/"
-SRC_URI="https://grass.osgeo.org/${MY_PM}/source/${MY_P}.tar.gz"
 
 LICENSE="GPL-2"
 SLOT="0/8.0"
-if [[ ${PV} != *_rc* ]] ; then
-	KEYWORDS="amd64 ~ppc x86"
+
+GVERSION=${SLOT#*/}
+MY_PM="${PN}${GVERSION}"
+MY_PM="${MY_PM/.}"
+
+if [[ ${PV} =~ "9999" ]]; then
+	inherit git-r3
+	EGIT_REPO_URI="https://github.com/OSGeo/grass.git"
+else
+	MY_P="${P/_rc/RC}"
+	SRC_URI="https://grass.osgeo.org/${MY_PM}/source/${MY_P}.tar.gz"
+	if [[ ${PV} != *_rc* ]] ; then
+		KEYWORDS="~amd64 ~ppc ~x86"
+	fi
+
+	S="${WORKDIR}/${MY_P}"
 fi
+
 IUSE="blas cxx fftw geos lapack liblas mysql netcdf nls odbc opencl opengl openmp png postgres readline sqlite threads tiff truetype X zstd"
 REQUIRED_USE="
 	${PYTHON_REQUIRED_USE}
@@ -80,12 +90,9 @@ BDEPEND="
 	virtual/pkgconfig
 	X? ( dev-lang/swig )"
 
-S="${WORKDIR}/${MY_P}"
-
 PATCHES=(
 	# bug 746590
 	"${FILESDIR}/${PN}-flock.patch"
-	"${FILESDIR}/${PN}-${PV}-mkhtml.patch"
 )
 
 pkg_setup() {
@@ -246,9 +253,9 @@ GISBASE = os.path.normpath(\"${gisbase}\"):" \
 os.environ\[\"GRASS_PYTHON\"\] = \"${EPYTHON}\":" \
 		-i "${ED}"/usr/bin/grass || die
 
-	# set proper GISDBASE directory path in the demolocation .grassrc80 file
+	# set proper GISDBASE directory path in the demolocation .grassrc${GVERSION//.} file
 	sed -e "s:GISDBASE\:.*$:GISDBASE\: ${gisbase}:" \
-		-i "${ED}"${gisbase}/demolocation/.grassrc80 || die
+		-i "${ED}"${gisbase}/demolocation/.grassrc${GVERSION//.} || die
 
 	if use X; then
 		local GUI="-gui"

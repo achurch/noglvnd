@@ -1,4 +1,4 @@
-# Copyright 1999-2021 Gentoo Authors
+# Copyright 1999-2022 Gentoo Authors
 # Distributed under the terms of the GNU General Public License v2
 
 EAPI=7
@@ -71,8 +71,12 @@ CDEPEND="
 		>=media-libs/libepoxy-1.5.4[X,egl(+)]
 	)
 	udev? ( virtual/libudev:= )
-	unwind? ( sys-libs/libunwind )
+	unwind? ( sys-libs/libunwind:= )
 	>=x11-apps/xinit-1.3.3-r1
+	selinux? (
+		sys-process/audit
+		sys-libs/libselinux:=
+	)
 	systemd? (
 		sys-apps/dbus
 		sys-apps/systemd
@@ -135,6 +139,7 @@ src_configure() {
 		$(use_enable !minimal glx)
 		$(use_enable xcsecurity)
 		$(use_enable xephyr)
+		$(use_enable selinux xselinux)
 		$(use_enable xnest)
 		$(use_enable xorg)
 		$(use_enable xvfb)

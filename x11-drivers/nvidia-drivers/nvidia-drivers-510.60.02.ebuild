@@ -1,21 +1,20 @@
 # Copyright 1999-2022 Gentoo Authors
 # Distributed under the terms of the GNU General Public License v2
 
-EAPI=7
+EAPI=8
 
 MODULES_OPTIONAL_USE="driver"
 inherit desktop flag-o-matic linux-mod multilib readme.gentoo-r1 \
 	systemd toolchain-funcs unpacker
 
-NV_KERNEL_MAX="5.16"
-NV_URI="https://download.nvidia.com/XFree86/"
+NV_KERNEL_MAX="5.17"
 
 DESCRIPTION="NVIDIA Accelerated Graphics Driver"
 HOMEPAGE="https://www.nvidia.com/download/index.aspx"
 SRC_URI="
-	amd64? ( ${NV_URI}Linux-x86_64/${PV}/NVIDIA-Linux-x86_64-${PV}.run )
-	arm64? ( ${NV_URI}Linux-aarch64/${PV}/NVIDIA-Linux-aarch64-${PV}.run )
-	$(printf "${NV_URI}%s/%s-${PV}.tar.bz2 " \
+	amd64? ( https://us.download.nvidia.com/XFree86/Linux-x86_64/${PV}/NVIDIA-Linux-x86_64-${PV}.run )
+	arm64? ( https://us.download.nvidia.com/XFree86/aarch64/${PV}/NVIDIA-Linux-aarch64-${PV}.run )
+	$(printf "https://github.com/NVIDIA/%s/archive/refs/tags/${PV}.tar.gz -> %s-${PV}.tar.gz " \
 		nvidia-{installer,modprobe,persistenced,settings,xconfig}{,})"
 # nvidia-installer is unused but here for GPL-2's "distribute sources"
 S="${WORKDIR}"
@@ -221,18 +220,19 @@ src_install() {
 	)
 
 	local skip_files=(
-		$(usex X '' '
+		# nvidia_icd/layers(vulkan): skip with -X too as it uses libGLX_nvidia
+		$(usev !X "
 			libGLX_nvidia libglxserver_nvidia
-			nvidia_icd.json nvidia_layers.json')
-		$(usex wayland '' 'libnvidia-vulkan-producer')
+			nvidia_icd.json nvidia_layers.json")
+		$(usev !wayland libnvidia-vulkan-producer)
 		libGLX_indirect # non-glvnd unused fallback
 		libnvidia-gtk nvidia-{settings,xconfig} # built from source
 		libnvidia-egl-gbm 15_nvidia_gbm # gui-libs/egl-gbm
 		libnvidia-egl-wayland 10_nvidia_wayland # gui-libs/egl-wayland
 	)
 	local skip_modules=(
-		$(usex X '' 'nvfbc vdpau xdriver')
-		$(usex driver '' 'gsp')
+		$(usev !X "nvfbc vdpau xdriver")
+		$(usev !driver gsp)
 		installer nvpd # handled separately / built from source
 	)
 	local skip_types=(
@@ -252,7 +252,7 @@ src_install() {
 	local DOC_CONTENTS="\
 Trusted users should be in the 'video' group to use NVIDIA devices.
 You can add yourself by using: gpasswd -a my-user video\
-$(usex driver "
+$(usev driver "
 
 Like all out-of-tree kernel modules, it is necessary to rebuild
 ${PN} after upgrading or rebuilding the Linux kernel
@@ -266,8 +266,8 @@ ensure \`eselect kernel list\` points to the kernel that will be
 booted before building and preferably reboot after upgrading
 ${PN} (the ebuild will emit a warning if mismatching).
 
-See '${EPREFIX}/etc/modprobe.d/nvidia.conf' for modules options." '')\
-$(use amd64 && usex abi_x86_32 '' "
+See '${EPREFIX}/etc/modprobe.d/nvidia.conf' for modules options.")\
+$(use amd64 && usev !abi_x86_32 "
 
 Note that without USE=abi_x86_32 on ${PN}, 32bit applications
 (typically using wine / steam) will not be able to use GPU acceleration.")

@@ -7,7 +7,7 @@ MODULES_OPTIONAL_USE="driver"
 inherit desktop flag-o-matic linux-mod multilib readme.gentoo-r1 \
 	systemd toolchain-funcs unpacker
 
-NV_KERNEL_MAX="5.16"
+NV_KERNEL_MAX="5.17"
 NV_URI="https://download.nvidia.com/XFree86/"
 
 DESCRIPTION="NVIDIA Accelerated Graphics Driver"
@@ -217,6 +217,7 @@ src_install() {
 	)
 
 	local skip_files=(
+		# nvidia_icd/layers(vulkan): skip with -X too as it uses libGLX_nvidia
 		$(usex X '' '
 			libGLX_nvidia libglxserver_nvidia
 			libnvidia-ifr

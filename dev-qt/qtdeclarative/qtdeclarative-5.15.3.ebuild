@@ -1,16 +1,16 @@
-# Copyright 2009-2021 Gentoo Authors
+# Copyright 2009-2022 Gentoo Authors
 # Distributed under the terms of the GNU General Public License v2
 
 EAPI=8
 
-KDE_ORG_COMMIT=7024ac8358f9e576dff013ce2452c1daa0d34506
+QT5_KDEPATCHSET_REV=1
 PYTHON_COMPAT=( python3_{8..10} )
 inherit python-any-r1 qt5-build
 
 DESCRIPTION="The QML and Quick modules for the Qt5 framework"
 
 if [[ ${QT5_BUILD_TYPE} == release ]]; then
-	KEYWORDS="amd64 arm arm64 ~hppa ppc ppc64 ~riscv ~sparc x86"
+	KEYWORDS="~amd64 ~arm ~arm64 ~hppa ~ppc ~ppc64 ~riscv ~sparc ~x86"
 fi
 
 IUSE="gles2-only +jit localstorage vulkan +widgets"
@@ -28,14 +28,7 @@ DEPEND="
 RDEPEND="${DEPEND}"
 BDEPEND="${PYTHON_DEPS}"
 
-PATCHES=(
-	"${FILESDIR}/${PN}-5.14.2-QQuickItemView-fix-maxXY-extent.patch" # QTBUG-83890
-	"${FILESDIR}/${PN}-5.15.2-riscv-atomic.patch" # bug 790689
-)
-
 src_prepare() {
-	use jit || PATCHES+=( "${FILESDIR}/${PN}-5.4.2-disable-jit.patch" )
-
 	qt_use_disable_mod localstorage sql \
 		src/imports/imports.pro
 
@@ -54,6 +47,16 @@ src_configure() {
 	local myqmakeargs=(
 		--
 		-qml-debug
+		$(qt_use jit feature-qml-jit)
 	)
 	qt5-build_src_configure
+}
+
+src_install() {
+	qt5-build_src_install
+	qt5_symlink_binary_to_path qml 5
+	qt5_symlink_binary_to_path qmleasing 5
+	qt5_symlink_binary_to_path qmljs 5
+	qt5_symlink_binary_to_path qmlpreview 5
+	qt5_symlink_binary_to_path qmlscene 5
 }

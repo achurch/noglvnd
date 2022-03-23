@@ -3,7 +3,7 @@
 
 EAPI=8
 
-PYTHON_COMPAT=( python3_{8..10} )
+PYTHON_COMPAT=( python3_{8,9} )
 PYTHON_REQ_USE="sqlite"  # bug 572440
 WX_GTK_VER="3.0-gtk3"
 
@@ -18,10 +18,8 @@ HOMEPAGE="https://grass.osgeo.org/"
 SRC_URI="https://grass.osgeo.org/${MY_PM}/source/${MY_P}.tar.gz"
 
 LICENSE="GPL-2"
-SLOT="0/8.0"
-if [[ ${PV} != *_rc* ]] ; then
-	KEYWORDS="amd64 ~ppc x86"
-fi
+SLOT="0/7.8.0"
+KEYWORDS="~amd64 ~ppc ~x86"
 IUSE="blas cxx fftw geos lapack liblas mysql netcdf nls odbc opencl opengl openmp png postgres readline sqlite threads tiff truetype X zstd"
 REQUIRED_USE="
 	${PYTHON_REQUIRED_USE}
@@ -40,8 +38,6 @@ RDEPEND="
 	sci-libs/proj:=
 	sci-libs/xdrfile
 	sys-libs/zlib
-	virtual/opengl
-	media-libs/glu
 	blas? (
 		virtual/cblas[eselect-ldso(+)]
 		virtual/blas[eselect-ldso(+)]
@@ -85,7 +81,6 @@ S="${WORKDIR}/${MY_P}"
 PATCHES=(
 	# bug 746590
 	"${FILESDIR}/${PN}-flock.patch"
-	"${FILESDIR}/${PN}-${PV}-mkhtml.patch"
 )
 
 pkg_setup() {
@@ -234,7 +229,7 @@ src_install() {
 	local gisbase=/usr/$(get_libdir)/${MY_PM}
 	sed -e "s:GISBASE = os.path.normpath(\"${D}/usr/$(get_libdir)/${MY_PM}\"):\
 GISBASE = os.path.normpath(\"${gisbase}\"):" \
-		-i "${ED}"/usr/bin/grass || die
+		-i "${ED}"/usr/bin/${MY_PM} || die
 
 	# get proper fonts path for fontcap
 	sed -i \
@@ -244,16 +239,16 @@ GISBASE = os.path.normpath(\"${gisbase}\"):" \
 	# set proper python interpreter
 	sed -e "s:os.environ\[\"GRASS_PYTHON\"\] = \"python3\":\
 os.environ\[\"GRASS_PYTHON\"\] = \"${EPYTHON}\":" \
-		-i "${ED}"/usr/bin/grass || die
+		-i "${ED}"/usr/bin/${MY_PM} || die
 
-	# set proper GISDBASE directory path in the demolocation .grassrc80 file
+	# set proper GISDBASE directory path in the demolocation .grassrc78 file
 	sed -e "s:GISDBASE\:.*$:GISDBASE\: ${gisbase}:" \
-		-i "${ED}"${gisbase}/demolocation/.grassrc80 || die
+		-i "${ED}"${gisbase}/demolocation/.grassrc78 || die
 
 	if use X; then
 		local GUI="-gui"
 		[[ ${WX_BUILD} == yes ]] && GUI="-wxpython"
-		make_desktop_entry "/usr/bin/grass ${GUI}" "${PN}" "${PN}-48x48" "Science;Education"
+		make_desktop_entry "/usr/bin/${MY_PM} ${GUI}" "${PN}" "${PN}-48x48" "Science;Education"
 		doicon -s 48 gui/icons/${PN}-48x48.png
 	fi
 
