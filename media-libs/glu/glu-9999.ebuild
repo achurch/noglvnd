@@ -1,4 +1,4 @@
-# Copyright 1999-2021 Gentoo Authors
+# Copyright 1999-2022 Gentoo Authors
 # Distributed under the terms of the GNU General Public License v2
 
 EAPI=7
@@ -31,7 +31,7 @@ RDEPEND="${DEPEND}"
 multilib_src_configure() {
 	local emesonargs=(
 		-Ddefault_library=$(usex static-libs both shared)
-		-Dgl_provider=glvnd
+		-Dgl_provider=gl
 	)
 	meson_src_configure
 }
