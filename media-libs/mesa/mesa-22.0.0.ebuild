@@ -326,12 +326,6 @@ multilib_src_configure() {
 	use wayland && platforms+=",wayland"
 	emesonargs+=(-Dplatforms=${platforms#,})
 
-	if use libglvnd; then
-		emesonargs+=(-Dglvnd=true)
-	else
-		emesonargs+=(-Dglvnd=false)
-	fi
-
 	if use video_cards_intel ||
 	   use video_cards_r300 ||
 	   use video_cards_r600 ||
@@ -435,9 +429,9 @@ multilib_src_configure() {
 		-Ddri3=enabled
 		-Degl=enabled
 		-Dgbm=enabled
-		$(meson_use glvnd libglvnd)
 		$(meson_feature gles1)
 		$(meson_feature gles2)
+		$(meson_use glvnd libglvnd)
 		$(meson_feature llvm)
 		$(meson_feature lm-sensors lmsensors)
 		$(meson_use osmesa)

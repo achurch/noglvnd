@@ -390,14 +390,12 @@ multilib_src_configure() {
 	use wayland && platforms+=",wayland"
 	emesonargs+=(-Dplatforms=${platforms#,})
 
-	if use libglvnd; then
-		emesonargs+=(-Dglvnd=true)
-	else
-		emesonargs+=(-Dglvnd=false)
-	fi
-
 	if use X || use egl; then
-		emesonargs+=(-Dglvnd=true)
+		if use libglvnd; then
+			emesonargs+=(-Dglvnd=true)
+		else
+			emesonargs+=(-Dglvnd=false)
+		fi
 	else
 		emesonargs+=(-Dglvnd=false)
 	fi
