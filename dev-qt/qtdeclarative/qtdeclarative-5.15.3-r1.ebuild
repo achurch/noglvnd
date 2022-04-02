@@ -3,7 +3,7 @@
 
 EAPI=8
 
-QT5_KDEPATCHSET_REV=1
+QT5_KDEPATCHSET_REV=2
 PYTHON_COMPAT=( python3_{8..10} )
 inherit python-any-r1 qt5-build
 
@@ -27,6 +27,10 @@ DEPEND="
 "
 RDEPEND="${DEPEND}"
 BDEPEND="${PYTHON_DEPS}"
+
+PATCHES=(
+	"${FILESDIR}/${PN}-5.14.2-QQuickItemView-fix-maxXY-extent.patch" # QTBUG-83890
+)
 
 src_prepare() {
 	qt_use_disable_mod localstorage sql \
@@ -56,7 +60,6 @@ src_install() {
 	qt5-build_src_install
 	qt5_symlink_binary_to_path qml 5
 	qt5_symlink_binary_to_path qmleasing 5
-	qt5_symlink_binary_to_path qmljs 5
 	qt5_symlink_binary_to_path qmlpreview 5
 	qt5_symlink_binary_to_path qmlscene 5
 }
