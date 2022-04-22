@@ -151,7 +151,7 @@ COMMON_TARGET_DEPEND="${PYTHON_DEPS}
 	webserver? ( >=net-libs/libmicrohttpd-0.9.55[messages(+)] )
 	X? (
 		media-libs/mesa[X]
-		!gles? ( media-libs/libglvnd[X] )
+		!gles? ( virtual/opengl )
 		x11-libs/libX11
 		x11-libs/libXrandr
 		x11-libs/libXrender
