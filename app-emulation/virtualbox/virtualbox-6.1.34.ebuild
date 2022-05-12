@@ -1,7 +1,7 @@
 # Copyright 2022 Gentoo Authors
 # Distributed under the terms of the GNU General Public License v2
 
-EAPI=7
+EAPI=8
 
 PYTHON_COMPAT=( python3_{8..10} )
 inherit desktop flag-o-matic java-pkg-opt-2 linux-info pax-utils python-single-r1 tmpfiles toolchain-funcs udev xdg
@@ -101,37 +101,24 @@ RDEPEND="
 	java? ( >=virtual/jre-1.6 )
 "
 
-QA_TEXTRELS_x86="usr/lib/virtualbox-ose/VBoxGuestPropSvc.so
-	usr/lib/virtualbox/VBoxSDL.so
-	usr/lib/virtualbox/VBoxSharedFolders.so
-	usr/lib/virtualbox/VBoxDD2.so
-	usr/lib/virtualbox/VBoxOGLrenderspu.so
-	usr/lib/virtualbox/VBoxPython.so
-	usr/lib/virtualbox/VBoxDD.so
-	usr/lib/virtualbox/VBoxDDU.so
-	usr/lib/virtualbox/VBoxREM64.so
-	usr/lib/virtualbox/VBoxSharedClipboard.so
-	usr/lib/virtualbox/VBoxHeadless.so
-	usr/lib/virtualbox/VBoxRT.so
-	usr/lib/virtualbox/VBoxREM.so
-	usr/lib/virtualbox/VBoxSettings.so
-	usr/lib/virtualbox/VBoxKeyboard.so
-	usr/lib/virtualbox/VBoxSharedCrOpenGL.so
-	usr/lib/virtualbox/VBoxVMM.so
-	usr/lib/virtualbox/VirtualBox.so
-	usr/lib/virtualbox/VBoxOGLhosterrorspu.so
-	usr/lib/virtualbox/components/VBoxC.so
-	usr/lib/virtualbox/components/VBoxSVCM.so
-	usr/lib/virtualbox/components/VBoxDDU.so
-	usr/lib/virtualbox/components/VBoxRT.so
-	usr/lib/virtualbox/components/VBoxREM.so
-	usr/lib/virtualbox/components/VBoxVMM.so
-	usr/lib/virtualbox/VBoxREM32.so
-	usr/lib/virtualbox/VBoxPython2_7.so
-	usr/lib/virtualbox/VBoxXPCOMC.so
-	usr/lib/virtualbox/VBoxOGLhostcrutil.so
-	usr/lib/virtualbox/VBoxNetDHCP.so
-	usr/lib/virtualbox/VBoxNetNAT.so"
+QA_TEXTRELS="
+	usr/lib64/virtualbox/VMMR0.r0
+"
+
+QA_EXECSTACK="
+	usr/lib64/virtualbox/iPxeBaseBin
+	usr/lib64/virtualbox/VMMR0.r0
+	usr/lib64/virtualbox/VBoxDDR0.r0
+"
+
+QA_WX_LOAD="
+	usr/lib64/virtualbox/iPxeBaseBin
+"
+
+QA_PRESTRIPPED="
+	/usr/lib64/virtualbox/VMMR0.r0
+	/usr/lib64/virtualbox/VBoxDDR0.r0
+"
 
 S="${WORKDIR}/${MY_PN}-${DIR_PV:-${MY_PV}}"
 
@@ -141,6 +128,10 @@ REQUIRED_USE="
 	vboxwebsrv? ( java )
 	${PYTHON_REQUIRED_USE}
 "
+
+PATCHES=(
+	"${FILESDIR}/${P}-vboxr0.patch"
+)
 
 pkg_pretend() {
 	if ! use headless && ! use qt5 ; then
@@ -426,14 +417,18 @@ src_install() {
 
 	if use udev ; then
 		local udevdir="$(get_udevdir)"
+		local udev_file="VBoxCreateUSBNode.sh"
+		local rules_file="10-virtualbox.rules"
+
 		insinto ${udevdir}
-		doins VBoxCreateUSBNode.sh
-		fowners root:vboxusers ${udevdir}/VBoxCreateUSBNode.sh
-		fperms 0750 ${udevdir}/VBoxCreateUSBNode.sh
+		doins ${udev_file}
+		fowners root:vboxusers ${udevdir}/${udev_file}
+		fperms 0750 ${udevdir}/${udev_file}
+
 		insinto ${udevdir}/rules.d
-		sed "s@%UDEVDIR%@${udevdir}@" "${FILESDIR}"/10-virtualbox.rules \
-			> "${T}"/10-virtualbox.rules || die
-		doins "${T}"/10-virtualbox.rules
+		sed "s@%UDEVDIR%@${udevdir}@" "${FILESDIR}"/${rules_file} \
+			> "${T}"/${rules_file} || die
+		doins "${T}"/${rules_file}
 	fi
 
 	if use vboxwebsrv ; then
@@ -506,9 +501,5 @@ pkg_postinst() {
 		elog ""
 		elog "WARNING!"
 		elog "Without USE=udev, USB devices will likely not work in ${PN}."
-	elif [[ -e "${ROOT}/etc/udev/rules.d/10-virtualbox.rules" ]] ; then
-		elog ""
-		elog "Please remove \"${ROOT}/etc/udev/rules.d/10-virtualbox.rules\""
-		elog "or else USB in ${PN} won't work."
 	fi
 }
