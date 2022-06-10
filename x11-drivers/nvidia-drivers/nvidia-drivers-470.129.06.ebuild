@@ -7,7 +7,7 @@ MODULES_OPTIONAL_USE="driver"
 inherit desktop flag-o-matic linux-mod multilib readme.gentoo-r1 \
 	systemd toolchain-funcs unpacker user-info
 
-NV_KERNEL_MAX="5.17"
+NV_KERNEL_MAX="5.18"
 NV_URI="https://download.nvidia.com/XFree86/"
 
 DESCRIPTION="NVIDIA Accelerated Graphics Driver"
@@ -21,7 +21,7 @@ S="${WORKDIR}"
 
 LICENSE="NVIDIA-r2 BSD BSD-2 GPL-2 MIT ZLIB curl openssl"
 SLOT="0/${PV%%.*}"
-KEYWORDS="-* ~amd64"
+KEYWORDS="-* amd64"
 IUSE="+X abi_x86_32 abi_x86_64 +driver libglvnd persistenced +static-libs +tools wayland"
 
 COMMON_DEPEND="
@@ -97,12 +97,15 @@ pkg_setup() {
 		~SYSVIPC
 		~!LOCKDEP
 		~!SLUB_DEBUG_ON
+		~!X86_KERNEL_IBT
 		!DEBUG_MUTEXES"
 	local ERROR_DRM_KMS_HELPER="CONFIG_DRM_KMS_HELPER: is not set but needed for Xorg auto-detection
 	of drivers (no custom config), and for wayland / nvidia-drm.modeset=1.
 	Cannot be directly selected in the kernel's menuconfig, and may need
 	selection of a DRM device even if unused, e.g. CONFIG_DRM_AMDGPU=m or
 	DRM_I915=y, DRM_NOUVEAU=m also acceptable if a module and not built-in."
+	local ERROR_X86_KERNEL_IBT="X86_KERNEL_IBT: is set, be warned the modules may not load with it.
+	If run into problems, either unset or pass ibt=off to the kernel."
 
 	use amd64 && kernel_is -ge 5 8 && CONFIG_CHECK+=" X86_PAT" #817764
 
@@ -170,7 +173,7 @@ src_prepare() {
 }
 
 src_compile() {
-	tc-export AR CC LD OBJCOPY
+	tc-export AR CC CXX LD OBJCOPY OBJDUMP
 
 	NV_ARGS=(
 		PREFIX="${EPREFIX}"/usr
@@ -181,7 +184,22 @@ src_compile() {
 		XNVCTRL_CFLAGS=-fPIC #840389
 	)
 
-	use driver && linux-mod_src_compile
+	if use driver; then
+		if linux_chkconfig_present GCC_PLUGINS; then
+			mkdir "${T}"/plugin-test || die
+			echo "obj-m += test.o" > "${T}"/plugin-test/Kbuild || die
+			> "${T}"/plugin-test/test.c || die
+			if [[ $(LC_ALL=C make -C "${KV_OUT_DIR}" ARCH="$(tc-arch-kernel)" \
+					HOSTCC="$(tc-getBUILD_CC)" M="${T}"/plugin-test 2>&1) \
+				=~ "error: incompatible gcc/plugin version" ]]; then
+				ewarn "Warning: detected kernel was built with different gcc/plugin versions,"
+				ewarn "you may need to 'make clean' and rebuild your kernel with the current"
+				ewarn "gcc version (or re-emerge for distribution kernels, including kernel-bin)."
+			fi
+		fi
+
+		linux-mod_src_compile
+	fi
 
 	emake "${NV_ARGS[@]}" -C nvidia-modprobe
 	use persistenced && emake "${NV_ARGS[@]}" -C nvidia-persistenced
@@ -321,8 +339,8 @@ https://wiki.gentoo.org/wiki/NVIDIA/nvidia-drivers"
 	local m into
 	while IFS=' ' read -ra m; do
 		! [[ ${#m[@]} -ge 2 && ${m[-1]} =~ MODULE: ]] ||
-			eval '[[ " ${m[0]##*/}" =~ ^(\ '${skip_files[*]/%/.*|\\}' )$ ]]' ||
-			eval '[[ " ${m[2]}" =~ ^(\ '${skip_types[*]/%/|\\}' )$ ]]' ||
+			[[ " ${m[0]##*/}" =~ ^(\ ${skip_files[*]/%/.*|\\} )$ ]] ||
+			[[ " ${m[2]}" =~ ^(\ ${skip_types[*]/%/|\\} )$ ]] ||
 			has ${m[-1]#MODULE:} "${skip_modules[@]}" && continue
 
 		case ${m[2]} in
@@ -406,7 +424,7 @@ pkg_preinst() {
 }
 
 pkg_postinst() {
-	use driver && linux-mod_pkg_postinst
+	linux-mod_pkg_postinst
 
 	if ! use libglvnd; then
 		# Switch to the nvidia implementation

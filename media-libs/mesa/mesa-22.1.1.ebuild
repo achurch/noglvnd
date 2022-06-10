@@ -1,9 +1,9 @@
 # Copyright 1999-2022 Gentoo Authors
 # Distributed under the terms of the GNU General Public License v2
 
-EAPI=7
+EAPI=8
 
-PYTHON_COMPAT=( python3_{8..10} )
+PYTHON_COMPAT=( python3_{8..11} )
 
 inherit llvm meson-multilib python-any-r1 linux-info
 
@@ -22,9 +22,7 @@ fi
 
 LICENSE="MIT"
 SLOT="0"
-RESTRICT="
-	!test? ( test )
-"
+RESTRICT="!test? ( test )"
 
 RADEON_CARDS="r300 r600 radeon radeonsi"
 VIDEO_CARDS="${RADEON_CARDS} freedreno intel lima nouveau panfrost v3d vc4 virgl vivante vmware"
@@ -288,7 +286,7 @@ pkg_pretend() {
 }
 
 python_check_deps() {
-	has_version -b ">=dev-python/mako-0.8.0[${PYTHON_USEDEP}]"
+	python_has_version -b ">=dev-python/mako-0.8.0[${PYTHON_USEDEP}]"
 }
 
 pkg_setup() {
