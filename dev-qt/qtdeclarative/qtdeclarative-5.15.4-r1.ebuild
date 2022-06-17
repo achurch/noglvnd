@@ -3,14 +3,14 @@
 
 EAPI=8
 
-QT5_KDEPATCHSET_REV=1
+QT5_KDEPATCHSET_REV=2
 PYTHON_COMPAT=( python3_{8..10} )
 inherit python-any-r1 qt5-build
 
 DESCRIPTION="The QML and Quick modules for the Qt5 framework"
 
 if [[ ${QT5_BUILD_TYPE} == release ]]; then
-	KEYWORDS="amd64 arm arm64 ~hppa ~loong ~ppc ~ppc64 ~riscv ~sparc x86"
+	KEYWORDS="~amd64 ~arm ~arm64 ~hppa ~loong ~ppc ~ppc64 ~riscv ~sparc ~x86"
 fi
 
 IUSE="gles2-only +jit localstorage vulkan +widgets"

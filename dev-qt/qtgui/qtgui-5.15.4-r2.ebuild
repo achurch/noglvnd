@@ -3,7 +3,7 @@
 
 EAPI=8
 
-QT5_KDEPATCHSET_REV=3
+QT5_KDEPATCHSET_REV=4
 QT5_MODULE="qtbase"
 inherit qt5-build
 
