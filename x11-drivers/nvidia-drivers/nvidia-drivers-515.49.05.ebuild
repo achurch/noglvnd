@@ -8,25 +8,29 @@ inherit desktop flag-o-matic linux-mod multilib readme.gentoo-r1 \
 	systemd toolchain-funcs unpacker user-info
 
 NV_KERNEL_MAX="5.15"
-NV_PIN="470.103.01"
+NV_PIN="515.48.07"
 
 DESCRIPTION="NVIDIA Accelerated Graphics Driver"
 HOMEPAGE="https://developer.nvidia.com/vulkan-driver"
 SRC_URI="
 	https://developer.nvidia.com/vulkan-beta-${PV//.}-linux -> NVIDIA-Linux-x86_64-${PV}.run
 	$(printf "https://download.nvidia.com/XFree86/%s/%s-${NV_PIN}.tar.bz2 " \
-		nvidia-{installer,modprobe,persistenced,settings,xconfig}{,})"
+		nvidia-{installer,modprobe,persistenced,settings,xconfig}{,})
+	https://github.com/NVIDIA/open-gpu-kernel-modules/archive/refs/tags/${PV}.tar.gz
+		-> open-gpu-kernel-modules-${PV}.tar.gz"
 # nvidia-installer is unused but here for GPL-2's "distribute sources"
 S="${WORKDIR}"
 
 LICENSE="NVIDIA-r2 BSD BSD-2 GPL-2 MIT ZLIB curl openssl"
 SLOT="0/vulkan"
 KEYWORDS="-* ~amd64"
-IUSE="+X abi_x86_32 abi_x86_64 +driver libglvnd persistenced +static-libs +tools wayland"
+IUSE="+X abi_x86_32 abi_x86_64 +driver libglvnd kernel-open persistenced +static-libs +tools wayland"
+REQUIRED_USE="kernel-open? ( driver )"
 
 COMMON_DEPEND="
 	acct-group/video
 	sys-libs/glibc
+	X? ( x11-libs/libpciaccess )
 	persistenced? (
 		acct-user/nvpd
 		net-libs/libtirpc:=
@@ -56,7 +60,8 @@ RDEPEND="
 		)
 	)
 	wayland? (
-		~gui-libs/egl-wayland-1.1.7
+		gui-libs/egl-gbm
+		>=gui-libs/egl-wayland-1.1.7-r1
 		libglvnd? ( media-libs/libglvnd )
 	)"
 DEPEND="
@@ -107,12 +112,19 @@ pkg_setup() {
 
 	use amd64 && kernel_is -ge 5 8 && CONFIG_CHECK+=" X86_PAT" #817764
 
+	use kernel-open && CONFIG_CHECK+=" MMU_NOTIFIER" #843827
+	local ERROR_MMU_NOTIFIER="CONFIG_MMU_NOTIFIER: is not set but needed to build with USE=kernel-open.
+	Cannot be directly selected in the kernel's menuconfig, and may need
+	selection of another option that requires it such as CONFIG_KVM."
+
 	MODULE_NAMES="
 		nvidia(video:kernel)
 		nvidia-drm(video:kernel)
 		nvidia-modeset(video:kernel)
 		nvidia-peermem(video:kernel)
 		nvidia-uvm(video:kernel)"
+	use kernel-open &&
+		MODULE_NAMES=${MODULE_NAMES//:kernel/:kernel-module-source:kernel-module-source/kernel-open}
 
 	linux-mod_pkg_setup
 
@@ -154,20 +166,34 @@ src_prepare() {
 	rm nvidia-persistenced && mv nvidia-persistenced{-${NV_PIN},} || die
 	rm nvidia-settings && mv nvidia-settings{-${NV_PIN},} || die
 	rm nvidia-xconfig && mv nvidia-xconfig{-${NV_PIN},} || die
+	mv open-gpu-kernel-modules-${PV} kernel-module-source || die
 
 	default
 
 	# prevent detection of incomplete kernel DRM support (bug #603818)
 	sed 's/defined(CONFIG_DRM/defined(CONFIG_DRM_KMS_HELPER/g' \
-		-i kernel/conftest.sh || die
+		-i kernel{,-module-source/kernel-open}/conftest.sh || die
 
+	# adjust service files
 	sed 's/__USER__/nvpd/' \
 		nvidia-persistenced/init/systemd/nvidia-persistenced.service.template \
 		> "${T}"/nvidia-persistenced.service || die
+	use !amd64 || sed -i "s|/usr|${EPREFIX}/opt|" systemd/system/nvidia-powerd.service || die
 
 	# enable nvidia-drm.modeset=1 by default with USE=wayland
 	cp "${FILESDIR}"/nvidia-470.conf "${T}"/nvidia.conf || die
 	use !wayland || sed -i '/^#.*modeset=1$/s/^#//' "${T}"/nvidia.conf || die
+
+	# makefile attempts to install wayland library even if not built
+	use wayland || sed -i 's/ WAYLAND_LIB_install$//' \
+		nvidia-settings/src/Makefile || die
+
+	# temporary option, nvidia will remove in the future
+	use !kernel-open ||
+		sed -i '/blacklist/a\
+\
+# Enable using kernel-open with workstation GPUs (experimental)\
+options nvidia NVreg_OpenRmEnableUnsupportedGpus=1' "${T}"/nvidia.conf || die
 }
 
 src_compile() {
@@ -179,6 +205,7 @@ src_compile() {
 		HOST_LD="$(tc-getBUILD_LD)"
 		NV_USE_BUNDLED_LIBJANSSON=0
 		NV_VERBOSE=1 DO_STRIP= MANPAGE_GZIP= OUTPUTDIR=out
+		WAYLAND_AVAILABLE=$(usex wayland 1 0)
 		XNVCTRL_CFLAGS=-fPIC #840389
 	)
 
@@ -224,6 +251,7 @@ src_install() {
 		[CUDA_ICD]=/etc/OpenCL/vendors
 		[EGL_EXTERNAL_PLATFORM_JSON]=/usr/share/egl/egl_external_platform.d
 		[FIRMWARE]=/lib/firmware/nvidia/${PV}
+		[GBM_BACKEND_LIB_SYMLINK]=/usr/${libdir}/gbm
 		[GLVND_EGL_ICD_JSON]=/usr/share/glvnd/egl_vendor.d
 		[VULKAN_ICD_JSON]=/usr/share/vulkan
 		[WINE_LIB]=/usr/${libdir}/nvidia/wine
@@ -238,11 +266,11 @@ src_install() {
 		# nvidia_icd/layers(vulkan): skip with -X too as it uses libGLX_nvidia
 		$(usev !X "
 			libGLX_nvidia libglxserver_nvidia
-			libnvidia-ifr
 			nvidia_icd.json nvidia_layers.json")
 		$(usev !wayland libnvidia-vulkan-producer)
 		libGLX_indirect # non-glvnd unused fallback
-		libnvidia-gtk nvidia-{settings,xconfig} # built from source
+		libnvidia-{gtk,wayland-client} nvidia-{settings,xconfig} # from source
+		libnvidia-egl-gbm 15_nvidia_gbm # gui-libs/egl-gbm
 		libnvidia-egl-wayland 10_nvidia_wayland # gui-libs/egl-wayland
 	)
 	local skip_modules=(
@@ -253,7 +281,7 @@ src_install() {
 	local skip_types=(
 		$(usex libglvnd 'GLVND_LIB GLVND_SYMLINK EGL_CLIENT.\* GLX_CLIENT.\*' 'GLVND_EGL_ICD_JSON')
 		OPENCL_WRAPPER.\* # virtual/opencl
-		DOCUMENTATION DOT_DESKTOP .\*_SRC DKMS_CONF # handled separately / unused
+		DOCUMENTATION DOT_DESKTOP .\*_SRC DKMS_CONF SYSTEMD_UNIT # handled separately / unused
 	)
 
 	local DOCS=(
@@ -346,6 +374,7 @@ https://wiki.gentoo.org/wiki/NVIDIA/nvidia-drivers"
 				gzip -dc ${m[0]} | newman - ${m[0]%.gz}; assert
 				continue
 			;;
+			GBM_BACKEND_LIB_SYMLINK) m[4]=../${m[4]};; # missing ../
 			VDPAU_SYMLINK) m[4]=vdpau/; m[5]=${m[5]#vdpau/};; # .so to vdpau/
 		esac
 
@@ -372,7 +401,7 @@ https://wiki.gentoo.org/wiki/NVIDIA/nvidia-drivers"
 			dosym ${m[4]} ${into}/${m[0]}
 			continue
 		fi
-		[[ ${m[0]} =~ ^libnvidia-ngx.so ]] &&
+		[[ ${m[0]} =~ ^libnvidia-ngx.so|^libnvidia-egl-gbm.so ]] &&
 			dosym ${m[0]} ${into}/${m[0]%.so*}.so.1 # soname not in .manifest
 
 		printf -v m[1] %o $((m[1] | 0200)) # 444->644
@@ -388,6 +417,17 @@ https://wiki.gentoo.org/wiki/NVIDIA/nvidia-drivers"
 	systemd_dounit systemd/system/nvidia-{hibernate,resume,suspend}.service
 
 	dobin nvidia-bug-report.sh
+
+	# MODULE:powerd extras
+	if use amd64; then
+		systemd_dounit systemd/system/nvidia-powerd.service
+		dodoc nvidia-dbus.conf
+	fi
+
+	# symlink non-versioned profile for nvidia-settings in case
+	# fails to detect version (i.e. mismatch, or with kernel-open)
+	dosym nvidia-application-profiles-${PV}-key-documentation \
+		${paths[APPLICATION_PROFILE]}/nvidia-application-profiles-key-documentation
 }
 
 pkg_preinst() {
@@ -454,6 +494,17 @@ pkg_postinst() {
 		ewarn "https://www.nvidia.com/object/IO_32667.html"
 	fi
 
+	if use kernel-open; then
+		ewarn
+		ewarn "Open source variant of ${PN} was selected, be warned it is experimental"
+		ewarn "and only usable with Turing / Ampere and later GPUs, aka GTX 1650+."
+		ewarn "Please also see: ${EROOT}/usr/share/doc/${PF}/html/kernel_open.html"
+		ewarn
+		ewarn "Many features are not yet implemented in the drivers and limitations are"
+		ewarn "to be expected. Please do not report non-build/packaging bugs to Gentoo."
+		ewarn "Switch back to USE=-kernel-open to restore functionality if needed for now."
+	fi
+
 	if use wayland && use driver && [[ ! -v NV_HAD_WAYLAND ]]; then
 		elog
 		elog "With USE=wayland, this version of ${PN} sets nvidia-drm.modeset=1"
@@ -462,8 +513,5 @@ pkg_postinst() {
 		elog
 		elog "If you experience issues, either disable wayland or edit nvidia.conf."
 		elog "Of note, may possibly cause issues with SLI and Reverse PRIME."
-		elog
-		elog "This version of ${PN} only supports EGLStream which is only"
-		elog "supported by a few wayland compositors (e.g. kwin / mutter, not sway)."
 	fi
 }
