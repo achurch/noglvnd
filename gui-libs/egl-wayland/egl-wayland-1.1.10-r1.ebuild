@@ -20,12 +20,13 @@ DEPEND="
 	${RDEPEND}
 	dev-libs/wayland-protocols
 	gui-libs/eglexternalplatform
-	virtual/opengl
+	>=media-libs/libglvnd-1.3.4
 	x11-libs/libdrm"
 BDEPEND="dev-util/wayland-scanner"
 
 PATCHES=(
 	"${FILESDIR}"/${PN}-1.1.6-remove-werror.patch
+	"${FILESDIR}"/${P}-revert-defer-resizes.patch
 )
 
 src_install() {
