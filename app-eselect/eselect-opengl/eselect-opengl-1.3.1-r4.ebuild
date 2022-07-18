@@ -1,9 +1,7 @@
-# Copyright 1999-2020 Gentoo Authors
+# Copyright 1999-2022 Gentoo Authors
 # Distributed under the terms of the GNU General Public License v2
 
-EAPI=5
-
-inherit eutils multilib
+EAPI=7
 
 DESCRIPTION="Utility to switch between OpenGL implementations"
 HOMEPAGE="https://wiki.gentoo.org/wiki/No_homepage"
@@ -59,6 +57,7 @@ src_prepare() {
 	if [[ ${CHOST} == *-darwin* ]] ; then
 		sed -i -e 's/libGL\.so/libGL.dylib/' opengl.eselect-${PV} || die
 	fi
+	eapply_user
 }
 
 src_install() {
