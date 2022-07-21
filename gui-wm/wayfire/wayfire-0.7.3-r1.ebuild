@@ -1,4 +1,4 @@
-# Copyright 2019-2021 Gentoo Authors
+# Copyright 2019-2022 Gentoo Authors
 # Distributed under the terms of the GNU General Public License v2
 
 EAPI=7
@@ -13,7 +13,7 @@ if [[ ${PV} == 9999 ]]; then
 	EGIT_REPO_URI="https://github.com/WayfireWM/${PN}.git"
 else
 	SRC_URI="https://github.com/WayfireWM/${PN}/releases/download/v${PV}/${P}.tar.xz"
-	KEYWORDS="amd64 ~arm64 ~riscv ~x86"
+	KEYWORDS="~amd64 ~arm64 ~riscv ~x86"
 fi
 
 LICENSE="MIT"
@@ -46,7 +46,7 @@ DEPEND="
 	)
 	!system-wfconfig? ( !gui-libs/wf-config )
 	system-wlroots? (
-		gui-libs/wlroots:0/15[X?]
+		>=gui-libs/wlroots-0.15.1:0/15[X?]
 	)
 	!system-wlroots? ( !gui-libs/wlroots )
 "
