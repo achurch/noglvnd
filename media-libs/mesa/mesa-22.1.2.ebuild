@@ -429,7 +429,7 @@ multilib_src_configure() {
 		-Dgbm=enabled
 		$(meson_feature gles1)
 		$(meson_feature gles2)
-		$(meson_use glvnd libglvnd)
+		$(meson_use libglvnd glvnd)
 		$(meson_feature llvm)
 		$(meson_feature lm-sensors lmsensors)
 		$(meson_use osmesa)
