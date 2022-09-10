@@ -3,7 +3,7 @@
 
 EAPI=8
 
-QT5_KDEPATCHSET_REV=1
+QT5_KDEPATCHSET_REV=2
 QT5_MODULE="qtbase"
 inherit qt5-build
 
@@ -11,7 +11,7 @@ DESCRIPTION="The GUI module and platform plugins for the Qt5 framework"
 SLOT=5/${QT5_PV} # bug 707658
 
 if [[ ${QT5_BUILD_TYPE} == release ]]; then
-	KEYWORDS="amd64 arm arm64 ~hppa ~loong ppc ppc64 ~riscv ~sparc x86"
+	KEYWORDS="amd64 ~arm ~arm64 ~hppa ~loong ~ppc ppc64 ~riscv ~sparc x86"
 fi
 
 IUSE="accessibility dbus egl eglfs evdev +gif gles2-only ibus jpeg
@@ -124,6 +124,12 @@ QT5_GENTOO_CONFIG=(
 
 QT5_GENTOO_PRIVATE_CONFIG=(
 	:gui
+)
+
+# https://bugs.kde.org/show_bug.cgi?id=449196
+# https://bugreports.qt.io/browse/QTBUG-91396
+PATCHES=( # kde/5.15 branch
+	"${FILESDIR}/${P}"-xcb-update-_NET_SUPPORTED-when-WM-changes-it.patch
 )
 
 src_prepare() {
