@@ -10,4 +10,10 @@ SLOT="0"
 KEYWORDS="x86 amd64"
 IUSE="+X abi_x86_32 abi_x86_64"
 
+# The libglvnd flag here is used to ensure that this package is not
+# installed (potentially deleting an existing libglvnd installation)
+# when USE=libglvnd is set.
+IUSE="${IUSE} libglvnd"
+REQUIRED_USE="libglvnd? ( !libglvnd )"
+
 RDEPEND="virtual/opengl"
