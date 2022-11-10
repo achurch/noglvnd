@@ -24,7 +24,7 @@ S="${WORKDIR}"
 LICENSE="NVIDIA-r2 BSD BSD-2 GPL-2 MIT ZLIB curl openssl"
 SLOT="0/${PV%%.*}"
 KEYWORDS="-* amd64 ~arm64"
-IUSE="+X abi_x86_32 abi_x86_64 +driver kernel-open persistenced +static-libs +tools wayland"
+IUSE="+X abi_x86_32 abi_x86_64 +driver libglvnd kernel-open persistenced +static-libs +tools wayland"
 REQUIRED_USE="kernel-open? ( driver )"
 
 COMMON_DEPEND="
@@ -51,14 +51,18 @@ COMMON_DEPEND="
 RDEPEND="
 	${COMMON_DEPEND}
 	X? (
-		media-libs/libglvnd[X,abi_x86_32(-)?]
 		x11-libs/libX11[abi_x86_32(-)?]
 		x11-libs/libXext[abi_x86_32(-)?]
+		!libglvnd? ( >=app-eselect/eselect-opengl-1.0.9 )
+		libglvnd? (
+			media-libs/libglvnd[X,abi_x86_32(-)?]
+			!app-eselect/eselect-opengl
+		)
 	)
 	wayland? (
 		gui-libs/egl-gbm
 		>=gui-libs/egl-wayland-1.1.10
-		media-libs/libglvnd
+		libglvnd? ( media-libs/libglvnd )
 	)"
 DEPEND="
 	${COMMON_DEPEND}
@@ -67,12 +71,12 @@ DEPEND="
 		x11-libs/libXext
 	)
 	tools? (
-		media-libs/libglvnd
 		sys-apps/dbus
 		x11-base/xorg-proto
 		x11-libs/libXrandr
 		x11-libs/libXv
 		x11-libs/libvdpau
+		libglvnd? ( media-libs/libglvnd )
 	)"
 BDEPEND="
 	sys-devel/m4
@@ -352,7 +356,7 @@ src_install() {
 		installer nvpd # handled separately / built from source
 	)
 	local skip_types=(
-		GLVND_LIB GLVND_SYMLINK EGL_CLIENT.\* GLX_CLIENT.\* # media-libs/libglvnd
+		$(usex libglvnd 'GLVND_LIB GLVND_SYMLINK EGL_CLIENT.\* GLX_CLIENT.\*' 'GLVND_EGL_ICD_JSON')
 		OPENCL_WRAPPER.\* # virtual/opencl
 		DOCUMENTATION DOT_DESKTOP .\*_SRC DKMS_CONF SYSTEMD_UNIT # handled separately / unused
 	)
@@ -463,6 +467,9 @@ https://wiki.gentoo.org/wiki/NVIDIA/nvidia-drivers"
 		else
 			die "No known installation path for ${m[0]}"
 		fi
+		if ! use libglvnd && [[ ${m[2]} =~ GLVND_LIB|GLVND_SYMLINK|_CLIENT_ ]]; then
+			into=${into}/opengl/nvidia/lib
+		fi
 		[[ ${m[3]: -2} == ?/ ]] && into+=/${m[3]%/}
 		[[ ${m[4]: -2} == ?/ ]] && into+=/${m[4]%/}
 
@@ -530,6 +537,11 @@ pkg_preinst() {
 
 pkg_postinst() {
 	linux-mod_pkg_postinst
+
+	if ! use libglvnd; then
+		# Switch to the nvidia implementation
+		use X && "${ROOT}"/usr/bin/eselect opengl set --use-old nvidia
+	fi
 
 	readme.gentoo_print_elog
 
