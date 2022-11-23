@@ -8,24 +8,22 @@ inherit desktop flag-o-matic linux-mod multilib readme.gentoo-r1 \
 	systemd toolchain-funcs unpacker user-info
 
 NV_KERNEL_MAX="6.0"
-NV_PIN="515.65.01"
+NV_URI="https://download.nvidia.com/XFree86/"
 
 DESCRIPTION="NVIDIA Accelerated Graphics Driver"
-HOMEPAGE="https://developer.nvidia.com/vulkan-driver"
+HOMEPAGE="https://www.nvidia.com/download/index.aspx"
 SRC_URI="
-	https://developer.nvidia.com/vulkan-beta-${PV//.}-linux -> NVIDIA-Linux-x86_64-${PV}.run
-	$(printf "https://download.nvidia.com/XFree86/%s/%s-${NV_PIN}.tar.bz2 " \
-		nvidia-{installer,modprobe,persistenced,settings,xconfig}{,})
-	https://github.com/NVIDIA/open-gpu-kernel-modules/archive/refs/tags/${PV}.tar.gz
-		-> open-gpu-kernel-modules-${PV}.tar.gz"
+	amd64? ( ${NV_URI}Linux-x86_64/${PV}/NVIDIA-Linux-x86_64-${PV}.run )
+	arm64? ( ${NV_URI}Linux-aarch64/${PV}/NVIDIA-Linux-aarch64-${PV}.run )
+	$(printf "${NV_URI}%s/%s-${PV}.tar.bz2 " \
+		nvidia-{installer,modprobe,persistenced,settings,xconfig}{,})"
 # nvidia-installer is unused but here for GPL-2's "distribute sources"
 S="${WORKDIR}"
 
 LICENSE="NVIDIA-r2 BSD BSD-2 GPL-2 MIT ZLIB curl openssl"
-SLOT="0/vulkan"
-KEYWORDS="-* ~amd64"
-IUSE="+X abi_x86_32 abi_x86_64 +driver libglvnd kernel-open persistenced +static-libs +tools wayland"
-REQUIRED_USE="kernel-open? ( driver )"
+SLOT="0/${PV%%.*}"
+KEYWORDS="-* ~amd64 ~arm64"
+IUSE="+X abi_x86_32 abi_x86_64 +driver libglvnd persistenced +static-libs +tools wayland"
 
 COMMON_DEPEND="
 	acct-group/video
@@ -36,7 +34,7 @@ COMMON_DEPEND="
 		net-libs/libtirpc:=
 	)
 	tools? (
-		|| ( >=app-accessibility/at-spi2-core-2.46:2 dev-libs/atk )
+		>=app-accessibility/at-spi2-core-2.46:2
 		dev-libs/glib:2
 		dev-libs/jansson:=
 		media-libs/harfbuzz:=
@@ -61,7 +59,7 @@ RDEPEND="
 	)
 	wayland? (
 		gui-libs/egl-gbm
-		>=gui-libs/egl-wayland-1.1.10
+		>=gui-libs/egl-wayland-1.1.7-r1
 		libglvnd? ( media-libs/libglvnd )
 	)"
 DEPEND="
@@ -114,19 +112,12 @@ pkg_setup() {
 
 	use amd64 && kernel_is -ge 5 8 && CONFIG_CHECK+=" X86_PAT" #817764
 
-	use kernel-open && CONFIG_CHECK+=" MMU_NOTIFIER" #843827
-	local ERROR_MMU_NOTIFIER="CONFIG_MMU_NOTIFIER: is not set but needed to build with USE=kernel-open.
-	Cannot be directly selected in the kernel's menuconfig, and may need
-	selection of another option that requires it such as CONFIG_KVM."
-
 	MODULE_NAMES="
 		nvidia(video:kernel)
 		nvidia-drm(video:kernel)
 		nvidia-modeset(video:kernel)
 		nvidia-peermem(video:kernel)
 		nvidia-uvm(video:kernel)"
-	use kernel-open &&
-		MODULE_NAMES=${MODULE_NAMES//:kernel/:kernel-module-source:kernel-module-source/kernel-open}
 
 	linux-mod_pkg_setup
 
@@ -229,20 +220,16 @@ pkg_setup() {
 
 src_prepare() {
 	# make patches usable across versions
-	rm nvidia-modprobe && mv nvidia-modprobe{-${NV_PIN},} || die
-	rm nvidia-persistenced && mv nvidia-persistenced{-${NV_PIN},} || die
-	rm nvidia-settings && mv nvidia-settings{-${NV_PIN},} || die
-	rm nvidia-xconfig && mv nvidia-xconfig{-${NV_PIN},} || die
-	mv open-gpu-kernel-modules-${PV} kernel-module-source || die
-
-	eapply --directory=kernel-module-source/kernel-open \
-		-p2 "${FILESDIR}"/nvidia-drivers-470.141.03-clang15.patch
+	rm nvidia-modprobe && mv nvidia-modprobe{-${PV},} || die
+	rm nvidia-persistenced && mv nvidia-persistenced{-${PV},} || die
+	rm nvidia-settings && mv nvidia-settings{-${PV},} || die
+	rm nvidia-xconfig && mv nvidia-xconfig{-${PV},} || die
 
 	default
 
 	# prevent detection of incomplete kernel DRM support (bug #603818)
 	sed 's/defined(CONFIG_DRM/defined(CONFIG_DRM_KMS_HELPER/g' \
-		-i kernel{,-module-source/kernel-open}/conftest.sh || die
+		-i kernel/conftest.sh || die
 
 	# adjust service files
 	sed 's/__USER__/nvpd/' \
@@ -253,17 +240,6 @@ src_prepare() {
 	# enable nvidia-drm.modeset=1 by default with USE=wayland
 	cp "${FILESDIR}"/nvidia-470.conf "${T}"/nvidia.conf || die
 	use !wayland || sed -i '/^#.*modeset=1$/s/^#//' "${T}"/nvidia.conf || die
-
-	# makefile attempts to install wayland library even if not built
-	use wayland || sed -i 's/ WAYLAND_LIB_install$//' \
-		nvidia-settings/src/Makefile || die
-
-	# temporary option, nvidia will remove in the future
-	use !kernel-open ||
-		sed -i '/blacklist/a\
-\
-# Enable using kernel-open with workstation GPUs (experimental)\
-options nvidia NVreg_OpenRmEnableUnsupportedGpus=1' "${T}"/nvidia.conf || die
 }
 
 src_compile() {
@@ -275,7 +251,6 @@ src_compile() {
 		HOST_LD="$(tc-getBUILD_LD)"
 		NV_USE_BUNDLED_LIBJANSSON=0
 		NV_VERBOSE=1 DO_STRIP= MANPAGE_GZIP= OUTPUTDIR=out
-		WAYLAND_AVAILABLE=$(usex wayland 1 0)
 		XNVCTRL_CFLAGS=-fPIC #840389
 	)
 
@@ -340,7 +315,7 @@ src_install() {
 			nvidia_icd.json nvidia_layers.json")
 		$(usev !wayland libnvidia-vulkan-producer)
 		libGLX_indirect # non-glvnd unused fallback
-		libnvidia-{gtk,wayland-client} nvidia-{settings,xconfig} # from source
+		libnvidia-gtk nvidia-{settings,xconfig} # built from source
 		libnvidia-egl-gbm 15_nvidia_gbm # gui-libs/egl-gbm
 		libnvidia-egl-wayland 10_nvidia_wayland # gui-libs/egl-wayland
 	)
@@ -493,9 +468,7 @@ https://wiki.gentoo.org/wiki/NVIDIA/nvidia-drivers"
 	# MODULE:powerd extras
 	if use amd64; then
 		systemd_dounit systemd/system/nvidia-powerd.service
-
-		insinto /usr/share/dbus-1/system.d
-		doins nvidia-dbus.conf
+		dodoc nvidia-dbus.conf
 	fi
 
 	# symlink non-versioned so nvidia-settings can use it even if misdetected
@@ -565,17 +538,6 @@ pkg_postinst() {
 		fi
 		ewarn "...then downgrade to a legacy branch if possible. For details, see:"
 		ewarn "https://www.nvidia.com/object/IO_32667.html"
-	fi
-
-	if use kernel-open; then
-		ewarn
-		ewarn "Open source variant of ${PN} was selected, be warned it is experimental"
-		ewarn "and only usable with Turing / Ampere and later GPUs, aka GTX 1650+."
-		ewarn "Please also see: ${EROOT}/usr/share/doc/${PF}/html/kernel_open.html"
-		ewarn
-		ewarn "Many features are not yet implemented in the drivers and limitations are"
-		ewarn "to be expected. Please do not report non-build/packaging bugs to Gentoo."
-		ewarn "Switch back to USE=-kernel-open to restore functionality if needed for now."
 	fi
 
 	if use wayland && use driver && [[ ! -v NV_HAD_WAYLAND ]]; then
