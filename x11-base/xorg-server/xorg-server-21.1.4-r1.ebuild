@@ -18,7 +18,8 @@ IUSE_SERVERS="xephyr xnest xorg xvfb"
 IUSE="${IUSE_SERVERS} debug +elogind libglvnd minimal selinux suid systemd test +udev unwind xcsecurity"
 RESTRICT="!test? ( test )"
 
-CDEPEND="libglvnd? (
+CDEPEND="
+	libglvnd? (
 		media-libs/libglvnd[X]
 		!app-eselect/eselect-opengl
 		!!x11-drivers/nvidia-drivers[-libglvnd(-)]
@@ -97,6 +98,11 @@ REQUIRED_USE="!minimal? (
 	)
 	elogind? ( udev )
 	?? ( elogind systemd )"
+
+UPSTREAMED_PATCHES=(
+	# https://gitlab.freedesktop.org/xorg/xserver/-/merge_requests/953
+	"${FILESDIR}"/${PN}-21.1.4-BadIDChoice.patch
+)
 
 PATCHES=(
 	"${UPSTREAMED_PATCHES[@]}"
