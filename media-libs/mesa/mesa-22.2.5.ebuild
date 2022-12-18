@@ -34,7 +34,7 @@ IUSE="${IUSE_VIDEO_CARDS}
 	cpu_flags_x86_sse2 d3d9 debug gles1 +gles2 libglvnd +llvm
 	lm-sensors opencl osmesa +proprietary-codecs selinux
 	test unwind vaapi valgrind vdpau vulkan
-	vulkan-overlay wayland +X xa zink +zstd"
+	vulkan-overlay wayland +X xa xvmc zink +zstd"
 
 REQUIRED_USE="
 	d3d9?   ( || ( video_cards_intel video_cards_r300 video_cards_r600 video_cards_radeonsi video_cards_nouveau video_cards_vmware ) )
@@ -44,12 +44,13 @@ REQUIRED_USE="
 	video_cards_r300?   ( x86? ( llvm ) amd64? ( llvm ) )
 	video_cards_radeonsi?   ( llvm )
 	xa? ( X )
+	xvmc? ( X )
 	zink? ( vulkan )
 "
 
 LIBDRM_DEPSTRING=">=x11-libs/libdrm-2.4.110"
 RDEPEND="
-	>=dev-libs/expat-2.1.0-r3[${MULTILIB_USEDEP}]
+	>=dev-libs/expat-2.1.0-r3:=[${MULTILIB_USEDEP}]
 	>=sys-libs/zlib-1.2.8[${MULTILIB_USEDEP}]
 	unwind? ( sys-libs/libunwind[${MULTILIB_USEDEP}] )
 	libglvnd? (
@@ -80,16 +81,19 @@ RDEPEND="
 		>=media-libs/libva-1.7.3:=[${MULTILIB_USEDEP}]
 	)
 	vdpau? ( >=x11-libs/libvdpau-1.1:=[${MULTILIB_USEDEP}] )
+	xvmc? ( >=x11-libs/libXvMC-1.0.8:=[${MULTILIB_USEDEP}] )
 	selinux? ( sys-libs/libselinux[${MULTILIB_USEDEP}] )
-	wayland? ( >=dev-libs/wayland-1.18.0[${MULTILIB_USEDEP}] )
+	wayland? (
+		>=dev-libs/wayland-1.18.0:=[${MULTILIB_USEDEP}]
+	)
 	${LIBDRM_DEPSTRING}[video_cards_freedreno?,video_cards_intel?,video_cards_nouveau?,video_cards_vc4?,video_cards_vivante?,video_cards_vmware?,${MULTILIB_USEDEP}]
 	X? (
-		>=x11-libs/libX11-1.6.2[${MULTILIB_USEDEP}]
-		>=x11-libs/libxshmfence-1.1[${MULTILIB_USEDEP}]
-		>=x11-libs/libXext-1.3.2[${MULTILIB_USEDEP}]
-		>=x11-libs/libXxf86vm-1.1.3[${MULTILIB_USEDEP}]
+		>=x11-libs/libX11-1.6.2:=[${MULTILIB_USEDEP}]
+		>=x11-libs/libxshmfence-1.1:=[${MULTILIB_USEDEP}]
+		>=x11-libs/libXext-1.3.2:=[${MULTILIB_USEDEP}]
+		>=x11-libs/libXxf86vm-1.1.3:=[${MULTILIB_USEDEP}]
 		>=x11-libs/libxcb-1.13:=[${MULTILIB_USEDEP}]
-		x11-libs/libXfixes[${MULTILIB_USEDEP}]
+		x11-libs/libXfixes:=[${MULTILIB_USEDEP}]
 	)
 	zink? ( media-libs/vulkan-loader:=[${MULTILIB_USEDEP}] )
 	zstd? ( app-arch/zstd:=[${MULTILIB_USEDEP}] )
@@ -111,10 +115,9 @@ RDEPEND="${RDEPEND}
 # 1. List all the working slots (with min versions) in ||, newest first.
 # 2. Update the := to specify *max* version, e.g. < 10.
 # 3. Specify LLVM_MAX_SLOT, e.g. 9.
-LLVM_MAX_SLOT="16"
+LLVM_MAX_SLOT="15"
 LLVM_DEPSTR="
 	|| (
-		sys-devel/llvm:16[${MULTILIB_USEDEP}]
 		sys-devel/llvm:15[${MULTILIB_USEDEP}]
 		sys-devel/llvm:14[${MULTILIB_USEDEP}]
 		sys-devel/llvm:13[${MULTILIB_USEDEP}]
@@ -196,7 +199,8 @@ BDEPEND="
 	sys-devel/flex
 	virtual/pkgconfig
 	$(python_gen_any_dep ">=dev-python/mako-0.8.0[\${PYTHON_USEDEP}]")
-	vulkan? ( dev-util/glslang )
+	vulkan? ( video_cards_radeonsi? ( dev-util/glslang ) )
+	vulkan-overlay? ( dev-util/glslang )
 	wayland? ( dev-util/wayland-scanner )
 "
 
@@ -268,6 +272,13 @@ pkg_pretend() {
 		   ! use video_cards_nouveau &&
 		   ! use video_cards_vmware; then
 			ewarn "Ignoring USE=xa         since VIDEO_CARDS does not contain freedreno, nouveau, or vmware"
+		fi
+	fi
+
+	if use xvmc; then
+		if ! use video_cards_r600 &&
+		   ! use video_cards_nouveau; then
+			ewarn "Ignoring USE=xvmc       since VIDEO_CARDS does not contain r600 or nouveau"
 		fi
 	fi
 
@@ -362,6 +373,13 @@ multilib_src_configure() {
 		emesonargs+=(-Dgallium-xa=disabled)
 	fi
 
+	if use video_cards_r600 ||
+	   use video_cards_nouveau; then
+		emesonargs+=($(meson_feature xvmc gallium-xvmc))
+	else
+		emesonargs+=(-Dgallium-xvmc=disabled)
+	fi
+
 	if use video_cards_freedreno ||
 	   use video_cards_lima ||
 	   use video_cards_panfrost ||
@@ -415,15 +433,6 @@ multilib_src_configure() {
 	use vulkan && vulkan_layers+="device-select"
 	use vulkan-overlay && vulkan_layers+=",overlay"
 	emesonargs+=(-Dvulkan-layers=${vulkan_layers#,})
-
-	# In LLVM 16, we've switched to building LLVM with EH/RTTI disabled
-	# to match upstream defaults.  Mesa requires being built the same way.
-	# https://bugs.gentoo.org/883955
-	if [[ ${LLVM_SLOT} -ge 16 ]]; then
-		emesonargs+=(
-			-Dcpp_rtti=false
-		)
-	fi
 
 	emesonargs+=(
 		$(meson_use test build-tests)
