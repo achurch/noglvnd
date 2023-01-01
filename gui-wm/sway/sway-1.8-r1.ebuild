@@ -33,7 +33,6 @@ DEPEND="
 	x11-libs/libxkbcommon
 	x11-libs/pango
 	x11-libs/pixman
-	x11-libs/xcb-util-wm
 	swaybar? ( x11-libs/gdk-pixbuf:2 )
 	tray? ( || (
 		sys-apps/systemd
@@ -41,7 +40,10 @@ DEPEND="
 		sys-libs/basu
 	) )
 	wallpapers? ( gui-apps/swaybg[gdk-pixbuf(+)] )
-	X? ( x11-libs/libxcb:0= )
+	X? (
+		x11-libs/libxcb:0=
+		x11-libs/xcb-util-wm
+	)
 "
 # x11-libs/xcb-util-wm needed for xcb-iccm
 if [[ ${PV} == 9999 ]]; then
