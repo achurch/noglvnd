@@ -29,7 +29,7 @@ DEPEND="
 	media-libs/libjpeg-turbo:=
 	media-libs/libpng:=
 	media-libs/freetype:=[X?]
-	virtual/opengl
+	virtual/opengl[X?,gles2]
 	x11-libs/libdrm
 	x11-libs/gtk+:3=[wayland,X?]
 	x11-libs/cairo[X?,svg(+)]
