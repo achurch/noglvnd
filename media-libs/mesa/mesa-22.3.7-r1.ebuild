@@ -17,7 +17,7 @@ if [[ ${PV} == 9999 ]]; then
 	inherit git-r3
 else
 	SRC_URI="https://archive.mesa3d.org/${MY_P}.tar.xz"
-	KEYWORDS="~alpha ~amd64 ~arm ~arm64 ~hppa ~ia64 ~loong ~mips ~ppc ~ppc64 ~riscv ~s390 ~sparc ~x86 ~amd64-linux ~x86-linux ~sparc-solaris ~x64-solaris ~x86-solaris"
+	KEYWORDS="~alpha amd64 arm arm64 hppa ~ia64 ~loong ~mips ppc ppc64 ~riscv ~s390 sparc x86 ~amd64-linux ~x86-linux ~sparc-solaris ~x64-solaris ~x86-solaris"
 fi
 
 LICENSE="MIT"
@@ -398,7 +398,7 @@ multilib_src_configure() {
 
 	if use vulkan; then
 		vulkan_enable video_cards_freedreno freedreno
-		vulkan_enable video_cards_intel intel
+		vulkan_enable video_cards_intel intel intel_hasvk
 		vulkan_enable video_cards_d3d12 microsoft-experimental
 		vulkan_enable video_cards_radeonsi amd
 		vulkan_enable video_cards_v3d broadcom
@@ -413,15 +413,6 @@ multilib_src_configure() {
 	use vulkan && vulkan_layers+="device-select"
 	use vulkan-overlay && vulkan_layers+=",overlay"
 	emesonargs+=(-Dvulkan-layers=${vulkan_layers#,})
-
-	# In LLVM 16, we've switched to building LLVM with EH/RTTI disabled
-	# to match upstream defaults.  Mesa requires being built the same way.
-	# https://bugs.gentoo.org/883955
-	if [[ ${LLVM_SLOT} -ge 16 ]]; then
-		emesonargs+=(
-			-Dcpp_rtti=false
-		)
-	fi
 
 	emesonargs+=(
 		$(meson_use test build-tests)

@@ -23,7 +23,7 @@ S="${WORKDIR}"
 
 LICENSE="NVIDIA-r2 BSD BSD-2 GPL-2 MIT ZLIB curl openssl"
 SLOT="0/${PV%%.*}"
-KEYWORDS="-* amd64 arm64"
+KEYWORDS="-* ~amd64 ~arm64"
 IUSE="+X abi_x86_32 abi_x86_64 +driver libglvnd kernel-open persistenced +static-libs +tools wayland"
 REQUIRED_USE="kernel-open? ( driver )"
 
@@ -87,8 +87,8 @@ QA_PREBUILT="lib/firmware/* opt/bin/* usr/lib*"
 PATCHES=(
 	"${FILESDIR}"/nvidia-kernel-module-source-515.86.01-raw-ldflags.patch
 	"${FILESDIR}"/nvidia-modprobe-390.141-uvm-perms.patch
-	"${FILESDIR}"/nvidia-settings-390.144-desktop.patch
 	"${FILESDIR}"/nvidia-settings-390.144-raw-ldflags.patch
+	"${FILESDIR}"/nvidia-settings-530.30.02-desktop.patch
 )
 
 pkg_setup() {
