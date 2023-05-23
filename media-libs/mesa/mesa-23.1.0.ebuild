@@ -208,6 +208,8 @@ llvm_check_deps() {
 PATCHES=(
 	# Temporary rusticl workaround: https://gitlab.freedesktop.org/mesa/mesa/-/issues/7717#note_1832122
 	"${FILESDIR}/clang_resource_dir.patch"
+
+	"${FILESDIR}"/${PN}-23.1.0-intel-Disable-shader-cache-when-executing-intel_clc-.patch
 )
 
 pkg_pretend() {
