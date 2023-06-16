@@ -8,33 +8,29 @@ inherit desktop flag-o-matic linux-mod-r1 multilib readme.gentoo-r1
 inherit systemd toolchain-funcs unpacker user-info
 
 MODULES_KERNEL_MAX=6.3
-NV_URI="https://download.nvidia.com/XFree86/"
+NV_PIN=525.116.04
 
 DESCRIPTION="NVIDIA Accelerated Graphics Driver"
-HOMEPAGE="https://www.nvidia.com/download/index.aspx"
+HOMEPAGE="https://developer.nvidia.com/vulkan-driver"
 SRC_URI="
-	amd64? ( ${NV_URI}Linux-x86_64/${PV}/NVIDIA-Linux-x86_64-${PV}.run )
-	arm64? ( ${NV_URI}Linux-aarch64/${PV}/NVIDIA-Linux-aarch64-${PV}.run )
-	$(printf "${NV_URI}%s/%s-${PV}.tar.bz2 " \
+	https://developer.nvidia.com/downloads/vulkan-beta-${PV//.}-linux
+		-> NVIDIA-Linux-x86_64-${PV}.run
+	$(printf "https://download.nvidia.com/XFree86/%s/%s-${NV_PIN}.tar.bz2 " \
 		nvidia-{installer,modprobe,persistenced,settings,xconfig}{,})
-	${NV_URI}NVIDIA-kernel-module-source/NVIDIA-kernel-module-source-${PV}.tar.xz"
+	https://github.com/NVIDIA/open-gpu-kernel-modules/archive/refs/tags/${PV}.tar.gz
+		-> open-gpu-kernel-modules-${PV}.tar.gz"
 # nvidia-installer is unused but here for GPL-2's "distribute sources"
 S="${WORKDIR}"
 
-LICENSE="NVIDIA-r2 Apache-2.0 BSD BSD-2 GPL-2 MIT ZLIB curl openssl"
-SLOT="0/${PV%%.*}"
-# unkeyworded due to being a beta release
-#KEYWORDS="-* ~amd64 ~arm64"
+LICENSE="NVIDIA-r2 BSD BSD-2 GPL-2 MIT ZLIB curl openssl"
+SLOT="0/vulkan"
+KEYWORDS="-* ~amd64"
 IUSE="+X abi_x86_32 abi_x86_64 kernel-open libglvnd persistenced +static-libs +tools wayland"
 REQUIRED_USE="kernel-open? ( modules )"
 
-# wrt openssl, can only use exactly :0/1.1 *or* :0/3 (prebuilt) but depend on
-# a simple >=1.1 given a || ( ) block confuses portage with subslot "rebuilds"
-# TODO: change to a hard dependency on exactly :0/3 when :0/1.1 loses relevance
 COMMON_DEPEND="
 	acct-group/video
 	sys-libs/glibc
-	>=dev-libs/openssl-1.1:=
 	X? ( x11-libs/libpciaccess )
 	persistenced? (
 		acct-user/nvpd
@@ -92,8 +88,8 @@ QA_PREBUILT="lib/firmware/* opt/bin/* usr/lib*"
 PATCHES=(
 	"${FILESDIR}"/nvidia-kernel-module-source-515.86.01-raw-ldflags.patch
 	"${FILESDIR}"/nvidia-modprobe-390.141-uvm-perms.patch
+	"${FILESDIR}"/nvidia-settings-390.144-desktop.patch
 	"${FILESDIR}"/nvidia-settings-390.144-raw-ldflags.patch
-	"${FILESDIR}"/nvidia-settings-530.30.02-desktop.patch
 )
 
 pkg_setup() {
@@ -191,11 +187,11 @@ pkg_setup() {
 
 src_prepare() {
 	# make patches usable across versions
-	rm nvidia-modprobe && mv nvidia-modprobe{-${PV},} || die
-	rm nvidia-persistenced && mv nvidia-persistenced{-${PV},} || die
-	rm nvidia-settings && mv nvidia-settings{-${PV},} || die
-	rm nvidia-xconfig && mv nvidia-xconfig{-${PV},} || die
-	mv NVIDIA-kernel-module-source-${PV} kernel-module-source || die
+	rm nvidia-modprobe && mv nvidia-modprobe{-${NV_PIN},} || die
+	rm nvidia-persistenced && mv nvidia-persistenced{-${NV_PIN},} || die
+	rm nvidia-settings && mv nvidia-settings{-${NV_PIN},} || die
+	rm nvidia-xconfig && mv nvidia-xconfig{-${NV_PIN},} || die
+	mv open-gpu-kernel-modules-${PV} kernel-module-source || die
 
 	default
 
@@ -294,7 +290,6 @@ src_install() {
 		[FIRMWARE]=/lib/firmware/nvidia/${PV}
 		[GBM_BACKEND_LIB_SYMLINK]=/usr/${libdir}/gbm
 		[GLVND_EGL_ICD_JSON]=/usr/share/glvnd/egl_vendor.d
-		[OPENGL_DATA]=/usr/share/nvidia
 		[VULKAN_ICD_JSON]=/usr/share/vulkan
 		[WINE_LIB]=/usr/${libdir}/nvidia/wine
 		[XORG_OUTPUTCLASS_CONFIG]=/usr/share/X11/xorg.conf.d
@@ -315,10 +310,6 @@ src_install() {
 		libnvidia-egl-gbm 15_nvidia_gbm # gui-libs/egl-gbm
 		libnvidia-egl-wayland 10_nvidia_wayland # gui-libs/egl-wayland
 	)
-	# TODO: hard-depend on openssl:0/3, drop this, and add pkcs11.so above
-	has_version 'dev-libs/openssl:0/3' &&
-		skip_files+=( libnvidia-pkcs11.so ) ||
-		skip_files+=( libnvidia-pkcs11-openssl3.so )
 	local skip_modules=(
 		$(usev !X "nvfbc vdpau xdriver")
 		$(usev !modules gsp)
