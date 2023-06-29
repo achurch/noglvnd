@@ -7,7 +7,7 @@ MODULES_OPTIONAL_IUSE=+modules
 inherit desktop flag-o-matic linux-mod-r1 multilib readme.gentoo-r1
 inherit systemd toolchain-funcs unpacker user-info
 
-MODULES_KERNEL_MAX=6.3
+MODULES_KERNEL_MAX=6.4
 NV_URI="https://download.nvidia.com/XFree86/"
 
 DESCRIPTION="NVIDIA Accelerated Graphics Driver"
@@ -85,10 +85,11 @@ BDEPEND="
 QA_PREBUILT="lib/firmware/* opt/bin/* usr/lib*"
 
 PATCHES=(
+	"${FILESDIR}"/nvidia-drivers-525.116.04-clang-unused-option.patch
 	"${FILESDIR}"/nvidia-kernel-module-source-515.86.01-raw-ldflags.patch
 	"${FILESDIR}"/nvidia-modprobe-390.141-uvm-perms.patch
+	"${FILESDIR}"/nvidia-settings-390.144-desktop.patch
 	"${FILESDIR}"/nvidia-settings-390.144-raw-ldflags.patch
-	"${FILESDIR}"/nvidia-settings-530.30.02-desktop.patch
 )
 
 pkg_setup() {
@@ -204,6 +205,9 @@ src_prepare() {
 		> "${T}"/nvidia-persistenced.service || die
 	use !amd64 || sed -i "s|/usr|${EPREFIX}/opt|" systemd/system/nvidia-powerd.service || die
 
+	# use alternative vulkan icd option if USE=-X (bug #909181)
+	use X || sed -i 's/"libGLX/"libEGL/' nvidia_{layers,icd}.json || die
+
 	# enable nvidia-drm.modeset=1 by default with USE=wayland
 	cp "${FILESDIR}"/nvidia-470.conf "${T}"/nvidia.conf || die
 	use !wayland || sed -i '/^#.*modeset=1$/s/^#//' "${T}"/nvidia.conf || die
@@ -299,10 +303,7 @@ src_install() {
 	)
 
 	local skip_files=(
-		# nvidia_icd/layers(vulkan): skip with -X too as it uses libGLX_nvidia
-		$(usev !X "
-			libGLX_nvidia libglxserver_nvidia
-			nvidia_icd.json nvidia_layers.json")
+		$(usev !X "libGLX_nvidia libglxserver_nvidia")
 		$(usev !wayland libnvidia-vulkan-producer)
 		libGLX_indirect # non-glvnd unused fallback
 		libnvidia-{gtk,wayland-client} nvidia-{settings,xconfig} # from source
