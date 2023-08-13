@@ -109,9 +109,10 @@ pkg_setup() {
 	selection of a DRM device even if unused, e.g. CONFIG_DRM_AMDGPU=m or
 	DRM_I915=y, DRM_NOUVEAU=m also acceptable if a module and not built-in."
 
-	local ERROR_X86_KERNEL_IBT="CONFIG_X86_KERNEL_IBT: is set, should be fine but *if* modules
-	fail to load with ENDBR errors, then try to either unset or pass ibt=off
-	to the kernel (default if no CPU support). Ignore this otherwise." # bug 911142
+	local ERROR_X86_KERNEL_IBT="CONFIG_X86_KERNEL_IBT: is set and, if the CPU supports the feature,
+	this *could* lead to modules load failure with ENDBR errors, or to
+	broken CUDA/NVENC. Please ignore if not having issues, but otherwise
+	try to unset or pass ibt=off to the kernel's command line." #911142
 	use kernel-open || CONFIG_CHECK+=" ~!X86_KERNEL_IBT"
 
 	use amd64 && kernel_is -ge 5 8 && CONFIG_CHECK+=" X86_PAT" #817764
@@ -493,12 +494,8 @@ pkg_postinst() {
 	if use kernel-open; then
 		ewarn
 		ewarn "Open source variant of ${PN} was selected, be warned it is experimental"
-		ewarn "and only usable with Turing / Ampere and later GPUs, aka GTX 1650+."
+		ewarn "and only for modern GPUs (e.g. GTX 1650+). Try to disable if run into issues."
 		ewarn "Please also see: ${EROOT}/usr/share/doc/${PF}/html/kernel_open.html"
-		ewarn
-		ewarn "Many features are not yet implemented in the drivers and limitations are"
-		ewarn "to be expected. Please do not report non-build/packaging bugs to Gentoo."
-		ewarn "Switch back to USE=-kernel-open to restore functionality if needed for now."
 	fi
 
 	if use wayland && use modules && [[ ! -v NV_HAD_WAYLAND ]]; then
