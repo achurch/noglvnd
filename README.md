@@ -15,9 +15,4 @@ libglvnd support is still available in packages as an option.  To use it
 without removing this overlay, set `USE=libglvnd` in `make.conf` and add a
 package mask for `=media-libs/libglvnd-10000`.
 
-This overlay force-disables the `libglvnd` USE flag in order to cancel
-the effect of forced `USE=libglvnd` in the base Gentoo profile.  The
-USE mask will be removed if and when the Gentoo base profile removes
-the forced flag.
-
 For background, see: https://bugs.gentoo.org/show_bug.cgi?id=728286
