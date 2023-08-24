@@ -25,7 +25,7 @@ that directory, if it is a directory):
 ```
 media-libs/mesa::gentoo
 x11-base/xorg-server::gentoo
-x11-base/nvidia-drivers::gentoo
+x11-drivers/nvidia-drivers::gentoo
 ```
 
 libglvnd support is still available in packages as an option.  To use it
