@@ -7,7 +7,7 @@ MODULES_OPTIONAL_IUSE=+modules
 inherit desktop flag-o-matic linux-mod-r1 multilib readme.gentoo-r1
 inherit systemd toolchain-funcs unpacker user-info
 
-MODULES_KERNEL_MAX=6.4
+MODULES_KERNEL_MAX=6.5
 NV_URI="https://download.nvidia.com/XFree86/"
 
 DESCRIPTION="NVIDIA Accelerated Graphics Driver"
@@ -23,17 +23,12 @@ S="${WORKDIR}"
 
 LICENSE="NVIDIA-r2 Apache-2.0 BSD BSD-2 GPL-2 MIT ZLIB curl openssl"
 SLOT="0/${PV%%.*}"
-KEYWORDS="-* ~amd64 ~arm64"
+KEYWORDS="-* amd64 ~arm64"
 IUSE="+X abi_x86_32 abi_x86_64 kernel-open libglvnd persistenced +static-libs +tools wayland"
 REQUIRED_USE="kernel-open? ( modules )"
 
-# wrt openssl, can only use exactly :0/1.1 *or* :0/3 (prebuilt) but depend on
-# a simple >=1.1 given a || ( ) block confuses portage with subslot "rebuilds"
-# TODO: change to a hard dependency on exactly :0/3 when :0/1.1 loses relevance
 COMMON_DEPEND="
 	acct-group/video
-	sys-libs/glibc
-	>=dev-libs/openssl-1.1:=
 	X? ( x11-libs/libpciaccess )
 	persistenced? (
 		acct-user/nvpd
@@ -54,6 +49,8 @@ COMMON_DEPEND="
 	)"
 RDEPEND="
 	${COMMON_DEPEND}
+	dev-libs/openssl:0/3
+	sys-libs/glibc
 	X? (
 		x11-libs/libX11[abi_x86_32(-)?]
 		x11-libs/libXext[abi_x86_32(-)?]
@@ -195,6 +192,7 @@ src_compile() {
 
 			# environment flags are normally unused for modules, but nvidia
 			# uses it for building the "blob" and it is a bit fragile
+			filter-flags -fno-plt #912949
 			filter-lto
 			CC=${KERNEL_CC} CXX=${KERNEL_CXX} strip-unsupported-flags
 		fi
@@ -204,6 +202,9 @@ src_compile() {
 			IGNORE_CC_MISMATCH=yes NV_VERBOSE=1
 			SYSOUT="${KV_OUT_DIR}" SYSSRC="${KV_DIR}"
 		)
+
+		# temporary workaround for bug #914468
+		CPP="${KERNEL_CC} -E" tc-is-clang && addpredict "${KV_OUT_DIR}"
 
 		linux-mod-r1_src_compile
 		CFLAGS=${o_cflags} CXXFLAGS=${o_cxxflags} LDFLAGS=${o_ldflags}
@@ -253,11 +254,8 @@ src_install() {
 		libnvidia-{gtk,wayland-client} nvidia-{settings,xconfig} # from source
 		libnvidia-egl-gbm 15_nvidia_gbm # gui-libs/egl-gbm
 		libnvidia-egl-wayland 10_nvidia_wayland # gui-libs/egl-wayland
+		libnvidia-pkcs11.so # using the openssl3 version instead
 	)
-	# TODO: hard-depend on openssl:0/3, drop this, and add pkcs11.so above
-	has_version 'dev-libs/openssl:0/3' &&
-		skip_files+=( libnvidia-pkcs11.so ) ||
-		skip_files+=( libnvidia-pkcs11-openssl3.so )
 	local skip_modules=(
 		$(usev !X "nvfbc vdpau xdriver")
 		$(usev !modules gsp)

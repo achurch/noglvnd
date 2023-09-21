@@ -7,33 +7,31 @@ MODULES_OPTIONAL_IUSE=+modules
 inherit desktop flag-o-matic linux-mod-r1 multilib readme.gentoo-r1
 inherit systemd toolchain-funcs unpacker user-info
 
-MODULES_KERNEL_MAX=6.4
-NV_URI="https://download.nvidia.com/XFree86/"
+MODULES_KERNEL_MAX=6.5
+NV_PIN=535.104.05
 
 DESCRIPTION="NVIDIA Accelerated Graphics Driver"
-HOMEPAGE="https://www.nvidia.com/download/index.aspx"
+HOMEPAGE="https://developer.nvidia.com/vulkan-driver"
 SRC_URI="
-	amd64? ( ${NV_URI}Linux-x86_64/${PV}/NVIDIA-Linux-x86_64-${PV}.run )
-	arm64? ( ${NV_URI}Linux-aarch64/${PV}/NVIDIA-Linux-aarch64-${PV}.run )
-	$(printf "${NV_URI}%s/%s-${PV}.tar.bz2 " \
+	https://developer.nvidia.com/downloads/vulkan-beta-${PV//.}-linux
+		-> NVIDIA-Linux-x86_64-${PV}.run
+	$(printf "https://download.nvidia.com/XFree86/%s/%s-${NV_PIN}.tar.bz2 " \
 		nvidia-{installer,modprobe,persistenced,settings,xconfig}{,})
-	${NV_URI}NVIDIA-kernel-module-source/NVIDIA-kernel-module-source-${PV}.tar.xz"
+	https://github.com/NVIDIA/open-gpu-kernel-modules/archive/refs/tags/${PV}.tar.gz
+		-> open-gpu-kernel-modules-${PV}.tar.gz"
 # nvidia-installer is unused but here for GPL-2's "distribute sources"
 S="${WORKDIR}"
 
 LICENSE="NVIDIA-r2 Apache-2.0 BSD BSD-2 GPL-2 MIT ZLIB curl openssl"
-SLOT="0/${PV%%.*}"
-KEYWORDS="-* amd64 ~arm64"
+SLOT="0/vulkan"
+KEYWORDS="-* ~amd64"
 IUSE="+X abi_x86_32 abi_x86_64 kernel-open libglvnd persistenced +static-libs +tools wayland"
 REQUIRED_USE="kernel-open? ( modules )"
 
-# wrt openssl, can only use exactly :0/1.1 *or* :0/3 (prebuilt) but depend on
-# a simple >=1.1 given a || ( ) block confuses portage with subslot "rebuilds"
-# TODO: change to a hard dependency on exactly :0/3 when :0/1.1 loses relevance
 COMMON_DEPEND="
 	acct-group/video
 	sys-libs/glibc
-	>=dev-libs/openssl-1.1:=
+	dev-libs/openssl:0/3
 	X? ( x11-libs/libpciaccess )
 	persistenced? (
 		acct-user/nvpd
@@ -54,6 +52,8 @@ COMMON_DEPEND="
 	)"
 RDEPEND="
 	${COMMON_DEPEND}
+	dev-libs/openssl:0/3
+	sys-libs/glibc
 	X? (
 		x11-libs/libX11[abi_x86_32(-)?]
 		x11-libs/libXext[abi_x86_32(-)?]
@@ -130,11 +130,11 @@ pkg_setup() {
 
 src_prepare() {
 	# make patches usable across versions
-	rm nvidia-modprobe && mv nvidia-modprobe{-${PV},} || die
-	rm nvidia-persistenced && mv nvidia-persistenced{-${PV},} || die
-	rm nvidia-settings && mv nvidia-settings{-${PV},} || die
-	rm nvidia-xconfig && mv nvidia-xconfig{-${PV},} || die
-	mv NVIDIA-kernel-module-source-${PV} kernel-module-source || die
+	rm nvidia-modprobe && mv nvidia-modprobe{-${NV_PIN},} || die
+	rm nvidia-persistenced && mv nvidia-persistenced{-${NV_PIN},} || die
+	rm nvidia-settings && mv nvidia-settings{-${NV_PIN},} || die
+	rm nvidia-xconfig && mv nvidia-xconfig{-${NV_PIN},} || die
+	mv open-gpu-kernel-modules-${PV} kernel-module-source || die
 
 	default
 
@@ -195,6 +195,7 @@ src_compile() {
 
 			# environment flags are normally unused for modules, but nvidia
 			# uses it for building the "blob" and it is a bit fragile
+			filter-flags -fno-plt #912949
 			filter-lto
 			CC=${KERNEL_CC} CXX=${KERNEL_CXX} strip-unsupported-flags
 		fi
@@ -204,6 +205,9 @@ src_compile() {
 			IGNORE_CC_MISMATCH=yes NV_VERBOSE=1
 			SYSOUT="${KV_OUT_DIR}" SYSSRC="${KV_DIR}"
 		)
+
+		# temporary workaround for bug #914468
+		CPP="${KERNEL_CC} -E" tc-is-clang && addpredict "${KV_OUT_DIR}"
 
 		linux-mod-r1_src_compile
 		CFLAGS=${o_cflags} CXXFLAGS=${o_cxxflags} LDFLAGS=${o_ldflags}
@@ -253,11 +257,8 @@ src_install() {
 		libnvidia-{gtk,wayland-client} nvidia-{settings,xconfig} # from source
 		libnvidia-egl-gbm 15_nvidia_gbm # gui-libs/egl-gbm
 		libnvidia-egl-wayland 10_nvidia_wayland # gui-libs/egl-wayland
+		libnvidia-pkcs11.so # using the openssl3 version instead
 	)
-	# TODO: hard-depend on openssl:0/3, drop this, and add pkcs11.so above
-	has_version 'dev-libs/openssl:0/3' &&
-		skip_files+=( libnvidia-pkcs11.so ) ||
-		skip_files+=( libnvidia-pkcs11-openssl3.so )
 	local skip_modules=(
 		$(usev !X "nvfbc vdpau xdriver")
 		$(usev !modules gsp)

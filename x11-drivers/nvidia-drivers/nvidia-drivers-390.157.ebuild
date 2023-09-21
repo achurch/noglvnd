@@ -27,7 +27,6 @@ IUSE="+X abi_x86_32 abi_x86_64 libglvnd persistenced +static-libs +tools"
 
 COMMON_DEPEND="
 	acct-group/video
-	sys-libs/glibc
 	persistenced? (
 		acct-user/nvpd
 		net-libs/libtirpc:=
@@ -47,6 +46,7 @@ COMMON_DEPEND="
 	)"
 RDEPEND="
 	${COMMON_DEPEND}
+	sys-libs/glibc
 	X? (
 		x11-libs/libX11[abi_x86_32(-)?]
 		x11-libs/libXext[abi_x86_32(-)?]
@@ -164,6 +164,10 @@ src_compile() {
 		IGNORE_CC_MISMATCH=yes NV_VERBOSE=1
 		SYSOUT="${KV_OUT_DIR}" SYSSRC="${KV_DIR}"
 	)
+
+	# temporary workaround for bug #914468
+	use modules &&
+		CPP="${KERNEL_CC} -E" tc-is-clang && addpredict "${KV_OUT_DIR}"
 
 	linux-mod-r1_src_compile
 

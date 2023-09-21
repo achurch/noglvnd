@@ -29,7 +29,6 @@ REQUIRED_USE="kernel-open? ( modules )"
 
 COMMON_DEPEND="
 	acct-group/video
-	sys-libs/glibc
 	X? ( x11-libs/libpciaccess )
 	persistenced? (
 		acct-user/nvpd
@@ -50,6 +49,7 @@ COMMON_DEPEND="
 	)"
 RDEPEND="
 	${COMMON_DEPEND}
+	sys-libs/glibc
 	X? (
 		x11-libs/libX11[abi_x86_32(-)?]
 		x11-libs/libXext[abi_x86_32(-)?]
@@ -192,6 +192,7 @@ src_compile() {
 
 			# environment flags are normally unused for modules, but nvidia
 			# uses it for building the "blob" and it is a bit fragile
+			filter-flags -fno-plt #912949
 			filter-lto
 			CC=${KERNEL_CC} CXX=${KERNEL_CXX} strip-unsupported-flags
 		fi
@@ -201,6 +202,9 @@ src_compile() {
 			IGNORE_CC_MISMATCH=yes NV_VERBOSE=1
 			SYSOUT="${KV_OUT_DIR}" SYSSRC="${KV_DIR}"
 		)
+
+		# temporary workaround for bug #914468
+		CPP="${KERNEL_CC} -E" tc-is-clang && addpredict "${KV_OUT_DIR}"
 
 		linux-mod-r1_src_compile
 		CFLAGS=${o_cflags} CXXFLAGS=${o_cxxflags} LDFLAGS=${o_ldflags}
