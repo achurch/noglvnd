@@ -3,7 +3,7 @@
 
 EAPI=8
 
-PYTHON_COMPAT=( python3_{10..12} )
+PYTHON_COMPAT=( python3_{10..11} )
 
 inherit llvm meson-multilib python-any-r1 linux-info
 
@@ -17,10 +17,10 @@ if [[ ${PV} == 9999 ]]; then
 	inherit git-r3
 else
 	SRC_URI="https://archive.mesa3d.org/${MY_P}.tar.xz"
-	KEYWORDS="~alpha ~amd64 ~arm ~arm64 ~hppa ~ia64 ~loong ~mips ~ppc ~ppc64 ~riscv ~s390 ~sparc ~x86 ~amd64-linux ~x86-linux ~x64-solaris"
+	KEYWORDS="~alpha amd64 arm arm64 ~hppa ~ia64 ~loong ~mips ppc ppc64 ~riscv ~s390 sparc x86 ~amd64-linux ~x86-linux ~x64-solaris"
 fi
 
-LICENSE="MIT"
+LICENSE="MIT SGI-B-2.0"
 SLOT="0"
 RESTRICT="!test? ( test )"
 
@@ -211,6 +211,9 @@ llvm_check_deps() {
 PATCHES=(
 	# Temporary rusticl workaround: https://gitlab.freedesktop.org/mesa/mesa/-/issues/7717#note_1832122
 	"${FILESDIR}/clang_resource_dir.patch"
+
+	# Workaround the CMake dependency lookup returning a different LLVM to llvm-config, bug #907965
+	"${FILESDIR}/clang_config_tool.patch"
 )
 
 pkg_pretend() {
@@ -292,6 +295,12 @@ pkg_setup() {
 		llvm_pkg_setup
 	fi
 	python-any-r1_pkg_setup
+}
+
+src_prepare() {
+	default
+	sed -i -e "/^PLATFORM_SYMBOLS/a '__gentoo_check_ldflags__'," \
+		bin/symbols-check.py || die # bug #830728
 }
 
 multilib_src_configure() {
@@ -377,7 +386,7 @@ multilib_src_configure() {
 	fi
 
 	if use llvm && use opencl; then
-		PKG_CONFIG_PATH="$(get_llvm_prefix)/$(get_libdir)/pkgconfig"
+		PKG_CONFIG_PATH="$(get_llvm_prefix "${LLVM_MAX_SLOT}")/$(get_libdir)/pkgconfig"
 		# See https://gitlab.freedesktop.org/mesa/mesa/-/blob/main/docs/rusticl.rst
 		emesonargs+=(
 			$(meson_native_true gallium-rusticl)
@@ -405,7 +414,7 @@ multilib_src_configure() {
 	emesonargs+=(-Dvulkan-layers=${vulkan_layers#,})
 
 	if use llvm && use vulkan && use video_cards_intel; then
-		PKG_CONFIG_PATH="$(get_llvm_prefix)/$(get_libdir)/pkgconfig"
+		PKG_CONFIG_PATH="$(get_llvm_prefix "${LLVM_MAX_SLOT}")/$(get_libdir)/pkgconfig"
 		emesonargs+=(-Dintel-clc=enabled)
 	else
 		emesonargs+=(-Dintel-clc=disabled)
