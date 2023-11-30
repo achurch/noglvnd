@@ -121,9 +121,9 @@ RDEPEND="${RDEPEND}
 # simultaneously.
 #
 # How to use it:
-# 1. Specify LLVM_MAX_SLOT (inclusive), e.g. 16.
+# 1. Specify LLVM_MAX_SLOT (inclusive), e.g. 17.
 # 2. Specify LLVM_MIN_SLOT (inclusive), e.g. 15.
-LLVM_MAX_SLOT="16"
+LLVM_MAX_SLOT="17"
 LLVM_MIN_SLOT="15"
 LLVM_USE_DEPS="llvm_targets_AMDGPU(+),${MULTILIB_USEDEP}"
 PER_SLOT_DEPSTR="
@@ -166,9 +166,9 @@ BDEPEND="
 	sys-devel/flex
 	virtual/pkgconfig
 	$(python_gen_any_dep ">=dev-python/mako-0.8.0[\${PYTHON_USEDEP}]")
-	llvm? (
-		vulkan? (
-			dev-util/glslang
+	vulkan? (
+		dev-util/glslang
+		llvm? (
 			video_cards_intel? (
 				amd64? (
 					$(python_gen_any_dep "dev-python/ply[\${PYTHON_USEDEP}]")
