@@ -3,7 +3,7 @@
 
 EAPI=8
 
-PYTHON_COMPAT=( python3_{10..12} )
+PYTHON_COMPAT=( python3_{10..11} )
 
 inherit llvm meson-multilib python-any-r1 linux-info
 
@@ -17,7 +17,7 @@ if [[ ${PV} == 9999 ]]; then
 	inherit git-r3
 else
 	SRC_URI="https://archive.mesa3d.org/${MY_P}.tar.xz"
-	KEYWORDS="~alpha ~amd64 ~arm ~arm64 ~hppa ~ia64 ~loong ~mips ~ppc ~ppc64 ~riscv ~s390 ~sparc ~x86 ~amd64-linux ~x86-linux ~x64-solaris"
+	KEYWORDS="~alpha ~amd64 ~arm arm64 ~hppa ~ia64 ~loong ~mips ppc ppc64 ~riscv ~s390 ~sparc ~x86 ~amd64-linux ~x86-linux ~x64-solaris"
 fi
 
 LICENSE="MIT SGI-B-2.0"
@@ -148,7 +148,7 @@ RDEPEND="${RDEPEND}
 unset LLVM_MIN_SLOT {LLVM,PER_SLOT}_DEPSTR
 
 DEPEND="${RDEPEND}
-	video_cards_d3d12? ( >=dev-util/directx-headers-1.611.0[${MULTILIB_USEDEP}] )
+	video_cards_d3d12? ( >=dev-util/directx-headers-1.610.0[${MULTILIB_USEDEP}] )
 	valgrind? ( dev-util/valgrind )
 	wayland? ( >=dev-libs/wayland-protocols-1.30 )
 	X? (
@@ -161,7 +161,6 @@ BDEPEND="
 	opencl? (
 		>=virtual/rust-1.62.0
 		>=dev-util/bindgen-0.58.0
-		>=dev-util/meson-1.3.0
 	)
 	sys-devel/bison
 	sys-devel/flex
@@ -191,6 +190,10 @@ x86? (
 	usr/lib/libOSMesa.so.8.0.0
 	libglvnd? ( usr/lib/libGLX_mesa.so.0.0.0 )
 )"
+
+PATCHES=(
+	"${FILESDIR}"/${PV}-d3d12-Fix-AV1-video-encode-32-bits-build.patch
+)
 
 llvm_check_deps() {
 	if use opencl; then
@@ -422,7 +425,7 @@ multilib_src_configure() {
 		$(meson_feature zstd)
 		$(meson_use cpu_flags_x86_sse2 sse2)
 		-Dvalgrind=$(usex valgrind auto disabled)
-		-Dvideo-codecs=$(usex proprietary-codecs "all" "all_free")
+		-Dvideo-codecs=$(usex proprietary-codecs "h264dec,h264enc,h265dec,h265enc,vc1dec" "")
 		-Dgallium-drivers=$(driver_list "${GALLIUM_DRIVERS[*]}")
 		-Dvulkan-drivers=$(driver_list "${VULKAN_DRIVERS[*]}")
 		--buildtype $(usex debug debug plain)

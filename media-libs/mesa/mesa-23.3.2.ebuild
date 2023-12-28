@@ -148,7 +148,7 @@ RDEPEND="${RDEPEND}
 unset LLVM_MIN_SLOT {LLVM,PER_SLOT}_DEPSTR
 
 DEPEND="${RDEPEND}
-	video_cards_d3d12? ( >=dev-util/directx-headers-1.611.0[${MULTILIB_USEDEP}] )
+	video_cards_d3d12? ( >=dev-util/directx-headers-1.610.0[${MULTILIB_USEDEP}] )
 	valgrind? ( dev-util/valgrind )
 	wayland? ( >=dev-libs/wayland-protocols-1.30 )
 	X? (
@@ -161,7 +161,6 @@ BDEPEND="
 	opencl? (
 		>=virtual/rust-1.62.0
 		>=dev-util/bindgen-0.58.0
-		>=dev-util/meson-1.3.0
 	)
 	sys-devel/bison
 	sys-devel/flex
@@ -422,7 +421,7 @@ multilib_src_configure() {
 		$(meson_feature zstd)
 		$(meson_use cpu_flags_x86_sse2 sse2)
 		-Dvalgrind=$(usex valgrind auto disabled)
-		-Dvideo-codecs=$(usex proprietary-codecs "all" "all_free")
+		-Dvideo-codecs=$(usex proprietary-codecs "h264dec,h264enc,h265dec,h265enc,vc1dec" "")
 		-Dgallium-drivers=$(driver_list "${GALLIUM_DRIVERS[*]}")
 		-Dvulkan-drivers=$(driver_list "${VULKAN_DRIVERS[*]}")
 		--buildtype $(usex debug debug plain)

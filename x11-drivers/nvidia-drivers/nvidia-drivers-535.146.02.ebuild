@@ -8,31 +8,28 @@ inherit desktop flag-o-matic linux-mod-r1 multilib readme.gentoo-r1
 inherit systemd toolchain-funcs unpacker user-info
 
 MODULES_KERNEL_MAX=6.6
-NV_PIN=535.129.03
+NV_URI="https://download.nvidia.com/XFree86/"
 
 DESCRIPTION="NVIDIA Accelerated Graphics Driver"
-HOMEPAGE="https://developer.nvidia.com/vulkan-driver"
+HOMEPAGE="https://www.nvidia.com/download/index.aspx"
 SRC_URI="
-	https://developer.nvidia.com/downloads/vulkan-beta-${PV//.}-linux
-		-> NVIDIA-Linux-x86_64-${PV}.run
-	$(printf "https://download.nvidia.com/XFree86/%s/%s-${NV_PIN}.tar.bz2 " \
+	amd64? ( ${NV_URI}Linux-x86_64/${PV}/NVIDIA-Linux-x86_64-${PV}.run )
+	arm64? ( ${NV_URI}Linux-aarch64/${PV}/NVIDIA-Linux-aarch64-${PV}.run )
+	$(printf "${NV_URI}%s/%s-${PV}.tar.bz2 " \
 		nvidia-{installer,modprobe,persistenced,settings,xconfig}{,})
-	https://github.com/NVIDIA/open-gpu-kernel-modules/archive/refs/tags/${PV}.tar.gz
-		-> open-gpu-kernel-modules-${PV}.tar.gz
+	${NV_URI}NVIDIA-kernel-module-source/NVIDIA-kernel-module-source-${PV}.tar.xz
 "
 # nvidia-installer is unused but here for GPL-2's "distribute sources"
 S=${WORKDIR}
 
 LICENSE="NVIDIA-r2 Apache-2.0 BSD BSD-2 GPL-2 MIT ZLIB curl openssl"
-SLOT="0/vulkan"
-KEYWORDS="-* ~amd64"
+SLOT="0/${PV%%.*}"
+KEYWORDS="-* amd64 ~arm64"
 IUSE="+X abi_x86_32 abi_x86_64 kernel-open libglvnd persistenced +static-libs +tools wayland"
 REQUIRED_USE="kernel-open? ( modules )"
 
 COMMON_DEPEND="
 	acct-group/video
-	sys-libs/glibc
-	dev-libs/openssl:0/3
 	X? ( x11-libs/libpciaccess )
 	persistenced? (
 		acct-user/nvpd
@@ -136,11 +133,11 @@ pkg_setup() {
 
 src_prepare() {
 	# make patches usable across versions
-	rm nvidia-modprobe && mv nvidia-modprobe{-${NV_PIN},} || die
-	rm nvidia-persistenced && mv nvidia-persistenced{-${NV_PIN},} || die
-	rm nvidia-settings && mv nvidia-settings{-${NV_PIN},} || die
-	rm nvidia-xconfig && mv nvidia-xconfig{-${NV_PIN},} || die
-	mv open-gpu-kernel-modules-${PV} kernel-module-source || die
+	rm nvidia-modprobe && mv nvidia-modprobe{-${PV},} || die
+	rm nvidia-persistenced && mv nvidia-persistenced{-${PV},} || die
+	rm nvidia-settings && mv nvidia-settings{-${PV},} || die
+	rm nvidia-xconfig && mv nvidia-xconfig{-${PV},} || die
+	mv NVIDIA-kernel-module-source-${PV} kernel-module-source || die
 
 	default
 
