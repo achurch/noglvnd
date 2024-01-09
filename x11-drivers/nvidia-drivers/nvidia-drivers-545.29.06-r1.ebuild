@@ -1,4 +1,4 @@
-# Copyright 1999-2023 Gentoo Authors
+# Copyright 1999-2024 Gentoo Authors
 # Distributed under the terms of the GNU General Public License v2
 
 EAPI=8
@@ -7,7 +7,7 @@ MODULES_OPTIONAL_IUSE=+modules
 inherit desktop flag-o-matic linux-mod-r1 readme.gentoo-r1
 inherit systemd toolchain-funcs unpacker user-info
 
-MODULES_KERNEL_MAX=6.6
+MODULES_KERNEL_MAX=6.7
 NV_URI="https://download.nvidia.com/XFree86/"
 
 DESCRIPTION="NVIDIA Accelerated Graphics Driver"
@@ -137,6 +137,9 @@ src_prepare() {
 	mv NVIDIA-kernel-module-source-${PV} kernel-module-source || die
 
 	default
+
+	kernel_is -ge 6 7 &&
+		eapply "${FILESDIR}"/nvidia-drivers-535.43.22-kernel-6.7.patch
 
 	# prevent detection of incomplete kernel DRM support (bug #603818)
 	sed 's/defined(CONFIG_DRM/defined(CONFIG_DRM_KMS_HELPER/g' \
@@ -415,12 +418,12 @@ documentation that is installed alongside this README."
 	# don't attempt to strip firmware files (silences errors)
 	dostrip -x ${paths[FIRMWARE]}
 
-	# sandbox issues with /dev/nvidiactl (and /dev/char wrt bug #904292)
+	# sandbox issues with /dev/nvidiactl others (bug #904292,#921578)
 	# are widespread and sometime affect revdeps of packages built with
 	# USE=opencl/cuda making it hard to manage in ebuilds (minimal set,
 	# ebuilds should handle manually if need others or addwrite)
 	insinto /etc/sandbox.d
-	newins - 20nvidia <<<'SANDBOX_PREDICT="/dev/nvidiactl:/dev/char"'
+	newins - 20nvidia <<<'SANDBOX_PREDICT="/dev/nvidiactl:/dev/nvidia-caps:/dev/char"'
 }
 
 pkg_preinst() {
