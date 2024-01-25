@@ -151,7 +151,7 @@ src_prepare() {
 }
 
 src_compile() {
-	tc-export AR CC CXX LD OBJCOPY OBJDUMP
+	tc-export AR CC CXX LD OBJCOPY OBJDUMP PKG_CONFIG
 	local -x RAW_LDFLAGS="$(get_abi_LDFLAGS) $(raw-ldflags)" # raw-ldflags.patch
 
 	# latest branches has proper fixes, but legacy have more issues and are
@@ -168,7 +168,7 @@ src_compile() {
 
 	local xnvflags=-fPIC #840389
 	# lto static libraries tend to cause problems without fat objects
-	is-flagq '-flto@(|=*)' && xnvflags+=" $(test-flags-CC -ffat-lto-objects)"
+	tc-is-lto && xnvflags+=" $(test-flags-CC -ffat-lto-objects)"
 
 	NV_ARGS=(
 		PREFIX="${EPREFIX}"/usr

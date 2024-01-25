@@ -3,9 +3,9 @@
 
 EAPI=8
 
-PYTHON_COMPAT=( python3_{10..11} )
+PYTHON_COMPAT=( python3_{10..12} )
 
-inherit llvm meson-multilib python-any-r1 linux-info
+inherit flag-o-matic llvm meson-multilib python-any-r1 linux-info
 
 MY_P="${P/_/-}"
 
@@ -401,6 +401,9 @@ multilib_src_configure() {
 	else
 		emesonargs+=(-Dintel-clc=disabled)
 	fi
+
+	# Workaround for bug #914905, can drop w/ > 23.3
+	append-ldflags $(test-flags-CCLD -Wl,--undefined-version)
 
 	emesonargs+=(
 		$(meson_use test build-tests)
