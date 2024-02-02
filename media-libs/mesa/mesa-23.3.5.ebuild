@@ -5,7 +5,7 @@ EAPI=8
 
 PYTHON_COMPAT=( python3_{10..12} )
 
-inherit llvm meson-multilib python-any-r1 linux-info
+inherit flag-o-matic llvm meson-multilib python-any-r1 linux-info
 
 MY_P="${P/_/-}"
 
@@ -32,7 +32,7 @@ done
 
 IUSE="${IUSE_VIDEO_CARDS}
 	cpu_flags_x86_sse2 d3d9 debug gles1 +gles2 libglvnd +llvm
-	lm-sensors opencl +opengl osmesa +proprietary-codecs selinux
+	lm-sensors opencl osmesa +proprietary-codecs selinux
 	test unwind vaapi valgrind vdpau vulkan
 	vulkan-overlay wayland +X xa zink +zstd"
 
@@ -47,17 +47,18 @@ REQUIRED_USE="
 			video_cards_vmware
 		)
 	)
+	vulkan? ( video_cards_radeonsi? ( llvm ) )
 	vulkan-overlay? ( vulkan )
 	video_cards_lavapipe? ( llvm vulkan )
 	video_cards_radeon? ( x86? ( llvm ) amd64? ( llvm ) )
 	video_cards_r300?   ( x86? ( llvm ) amd64? ( llvm ) )
+	video_cards_radeonsi?   ( llvm )
 	vdpau? ( X )
 	xa? ( X )
-	X? ( gles1? ( opengl ) gles2? ( opengl ) )
-	zink? ( vulkan || ( opengl gles1 gles2 ) )
+	zink? ( vulkan )
 "
 
-LIBDRM_DEPSTRING=">=x11-libs/libdrm-2.4.119"
+LIBDRM_DEPSTRING=">=x11-libs/libdrm-2.4.110"
 RDEPEND="
 	>=dev-libs/expat-2.1.0-r3[${MULTILIB_USEDEP}]
 	>=sys-libs/zlib-1.2.8[${MULTILIB_USEDEP}]
@@ -147,7 +148,7 @@ RDEPEND="${RDEPEND}
 unset LLVM_MIN_SLOT {LLVM,PER_SLOT}_DEPSTR
 
 DEPEND="${RDEPEND}
-	video_cards_d3d12? ( >=dev-util/directx-headers-1.611.0[${MULTILIB_USEDEP}] )
+	video_cards_d3d12? ( >=dev-util/directx-headers-1.610.0[${MULTILIB_USEDEP}] )
 	valgrind? ( dev-debug/valgrind )
 	wayland? ( >=dev-libs/wayland-protocols-1.30 )
 	X? (
@@ -160,7 +161,6 @@ BDEPEND="
 	opencl? (
 		>=virtual/rust-1.62.0
 		>=dev-util/bindgen-0.58.0
-		>=dev-build/meson-1.3.1
 	)
 	app-alternatives/yacc
 	app-alternatives/lex
@@ -402,34 +402,20 @@ multilib_src_configure() {
 		emesonargs+=(-Dintel-clc=disabled)
 	fi
 
-	if use opengl || use gles1 || use gles2; then
-		emesonargs+=(
-			-Degl=enabled
-			-Dgbm=enabled
-			$(meson_use libglvnd glvnd)
-		)
-	else
-		emesonargs+=(
-			-Degl=disabled
-			-Dgbm=disabled
-			-Dglvnd=false
-		)
-	fi
-
-	if use opengl && use X; then
-		emesonargs+=(-Dglx=dri)
-	else
-		emesonargs+=(-Dglx=disabled)
-	fi
+	# Workaround for bug #914905, can drop w/ > 23.3
+	append-ldflags $(test-flags-CCLD -Wl,--undefined-version)
 
 	emesonargs+=(
 		$(meson_use test build-tests)
+		-Dglx=$(usex X dri disabled)
 		-Dshared-glapi=enabled
 		-Ddri3=enabled
+		-Degl=enabled
 		-Dexpat=enabled
-		$(meson_use opengl)
+		-Dgbm=enabled
 		$(meson_feature gles1)
 		$(meson_feature gles2)
+		$(meson_use libglvnd glvnd)
 		$(meson_feature llvm)
 		$(meson_feature lm-sensors lmsensors)
 		$(meson_use osmesa)
@@ -438,7 +424,7 @@ multilib_src_configure() {
 		$(meson_feature zstd)
 		$(meson_use cpu_flags_x86_sse2 sse2)
 		-Dvalgrind=$(usex valgrind auto disabled)
-		-Dvideo-codecs=$(usex proprietary-codecs "all" "all_free")
+		-Dvideo-codecs=$(usex proprietary-codecs "h264dec,h264enc,h265dec,h265enc,vc1dec" "")
 		-Dgallium-drivers=$(driver_list "${GALLIUM_DRIVERS[*]}")
 		-Dvulkan-drivers=$(driver_list "${VULKAN_DRIVERS[*]}")
 		--buildtype $(usex debug debug plain)

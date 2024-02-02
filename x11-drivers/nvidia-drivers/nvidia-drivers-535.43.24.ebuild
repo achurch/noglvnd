@@ -8,7 +8,7 @@ inherit desktop flag-o-matic linux-mod-r1 multilib readme.gentoo-r1
 inherit systemd toolchain-funcs unpacker user-info
 
 MODULES_KERNEL_MAX=6.7
-NV_PIN=535.146.02
+NV_PIN=535.154.05
 
 DESCRIPTION="NVIDIA Accelerated Graphics Driver"
 HOMEPAGE="https://developer.nvidia.com/vulkan-driver"
@@ -95,6 +95,7 @@ BDEPEND="
 QA_PREBUILT="lib/firmware/* opt/bin/* usr/lib*"
 
 PATCHES=(
+	"${FILESDIR}"/nvidia-drivers-470.223.02-gpl-pfn_valid.patch
 	"${FILESDIR}"/nvidia-drivers-525.147.05-gcc14.patch
 	"${FILESDIR}"/nvidia-kernel-module-source-515.86.01-raw-ldflags.patch
 	"${FILESDIR}"/nvidia-modprobe-390.141-uvm-perms.patch
@@ -427,6 +428,7 @@ documentation that is installed alongside this README."
 
 	# MODULE:powerd extras
 	if use amd64; then
+		newinitd "${FILESDIR}"/nvidia-powerd.initd nvidia-powerd #923117
 		systemd_dounit systemd/system/nvidia-powerd.service
 
 		insinto /usr/share/dbus-1/system.d

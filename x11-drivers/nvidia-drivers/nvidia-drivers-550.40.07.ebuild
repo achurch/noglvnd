@@ -92,6 +92,8 @@ BDEPEND="
 QA_PREBUILT="lib/firmware/* opt/bin/* usr/lib*"
 
 PATCHES=(
+	"${FILESDIR}"/nvidia-drivers-470.223.02-gpl-pfn_valid.patch
+	"${FILESDIR}"/nvidia-drivers-525.147.05-gcc14.patch
 	"${FILESDIR}"/nvidia-modprobe-390.141-uvm-perms.patch
 	"${FILESDIR}"/nvidia-settings-530.30.02-desktop.patch
 )
@@ -113,12 +115,6 @@ pkg_setup() {
 	Cannot be directly selected in the kernel's menuconfig, and may need
 	selection of a DRM device even if unused, e.g. CONFIG_DRM_AMDGPU=m or
 	DRM_I915=y, DRM_NOUVEAU=m also acceptable if a module and not built-in."
-
-	local ERROR_X86_KERNEL_IBT="CONFIG_X86_KERNEL_IBT: is set and, if the CPU supports the feature,
-	this *could* lead to modules load failure with ENDBR errors, or to
-	broken CUDA/NVENC. Please ignore if not having issues, but otherwise
-	try to unset or pass ibt=off to the kernel's command line." #911142
-	use kernel-open || CONFIG_CHECK+=" ~!X86_KERNEL_IBT"
 
 	use amd64 && kernel_is -ge 5 8 && CONFIG_CHECK+=" X86_PAT" #817764
 
@@ -410,6 +406,7 @@ documentation that is installed alongside this README."
 	# MODULE:powerd extras
 	insinto /usr/share/dbus-1/system.d
 	doins nvidia-dbus.conf
+	newinitd "${FILESDIR}"/nvidia-powerd.initd nvidia-powerd #923117
 	systemd_dounit systemd/system/nvidia-powerd.service
 
 	# symlink non-versioned so nvidia-settings can use it even if misdetected
