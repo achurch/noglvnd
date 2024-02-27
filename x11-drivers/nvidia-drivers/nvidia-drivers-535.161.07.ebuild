@@ -7,7 +7,7 @@ MODULES_OPTIONAL_IUSE=+modules
 inherit desktop flag-o-matic linux-mod-r1 multilib readme.gentoo-r1
 inherit systemd toolchain-funcs unpacker user-info
 
-MODULES_KERNEL_MAX=6.7 # 6.6 for arm64 (see below)
+MODULES_KERNEL_MAX=6.7
 NV_URI="https://download.nvidia.com/XFree86/"
 
 DESCRIPTION="NVIDIA Accelerated Graphics Driver"
@@ -24,7 +24,7 @@ S=${WORKDIR}
 
 LICENSE="NVIDIA-r2 Apache-2.0 BSD BSD-2 GPL-2 MIT ZLIB curl openssl"
 SLOT="0/${PV%%.*}"
-KEYWORDS="-* amd64 ~arm64"
+KEYWORDS="-* ~amd64 ~arm64"
 IUSE="+X abi_x86_32 abi_x86_64 egl kernel-open libglvnd persistenced powerd +static-libs +tools wayland"
 REQUIRED_USE="kernel-open? ( modules )"
 
@@ -93,7 +93,6 @@ BDEPEND="
 QA_PREBUILT="lib/firmware/* opt/bin/* usr/lib*"
 
 PATCHES=(
-	"${FILESDIR}"/nvidia-drivers-470.223.02-gpl-pfn_valid.patch
 	"${FILESDIR}"/nvidia-drivers-525.147.05-gcc14.patch
 	"${FILESDIR}"/nvidia-kernel-module-source-515.86.01-raw-ldflags.patch
 	"${FILESDIR}"/nvidia-modprobe-390.141-uvm-perms.patch
@@ -132,11 +131,6 @@ pkg_setup() {
 	local ERROR_MMU_NOTIFIER="CONFIG_MMU_NOTIFIER: is not set but needed to build with USE=kernel-open.
 	Cannot be directly selected in the kernel's menuconfig, and may need
 	selection of another option that requires it such as CONFIG_KVM."
-
-	# screen_info is marked GPL on non-x86 in 6.7 and cannot be used
-	# (patchable, but just avoid advertising compatibility for now)
-	# https://forums.developer.nvidia.com/t/278367
-	use arm64 && MODULES_KERNEL_MAX=6.6
 
 	linux-mod-r1_pkg_setup
 }
