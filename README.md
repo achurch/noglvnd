@@ -32,4 +32,11 @@ libglvnd support is still available in packages as an option.  To use it
 without removing this overlay, set `USE=libglvnd` in `make.conf` and add a
 package mask for `media-libs/libglvnd::noglvnd`.
 
+This overlay can be installed with the following command:
+```
+eselect repository add noglvnd git https://github.com/achurch/noglvnd.git
+```
+Alternatively, copy `noglvnd.conf` into `/etc/portage/repos.conf` (and
+change the `location` field as desired).
+
 For background, see: https://bugs.gentoo.org/show_bug.cgi?id=728286
