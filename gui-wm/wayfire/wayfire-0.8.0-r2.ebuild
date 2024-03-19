@@ -14,12 +14,12 @@ if [[ ${PV} == 9999 ]]; then
 	SLOT="0/9999"
 else
 	SRC_URI="https://github.com/WayfireWM/${PN}/releases/download/v${PV}/${P}.tar.xz"
-	KEYWORDS="amd64 ~arm64 ~riscv ~x86"
+	KEYWORDS="~amd64 ~arm64 ~riscv ~x86"
 	SLOT="0/$(ver_cut 1-2)"
 fi
 
 LICENSE="MIT"
-IUSE="+gles +system-wfconfig +system-wlroots test X"
+IUSE="+gles3 +system-wfconfig +system-wlroots test X"
 RESTRICT="!test? ( test )"
 
 # bundled wlroots has the following dependency string according to included headers.
@@ -99,8 +99,13 @@ BDEPEND="
 	!system-wlroots? ( ${WLROOTS_BDEPEND} )
 "
 
+PATCHES=(
+	"${FILESDIR}/wayfire-0.8.0-fix-duplicate-manpage.patch"
+	"${FILESDIR}/wayfire-0.8.0-dont-use-installed-config-h.patch"
+)
+
 src_prepare() {
-	eapply_user
+	default
 
 	sed -e "s:@EPREFIX@:${EPREFIX}:" \
 		"${FILESDIR}"/wayfire-session > "${T}"/wayfire-session || die
@@ -123,7 +128,7 @@ src_configure() {
 		$(meson_feature system-wlroots use_system_wlroots)
 		$(meson_feature test tests)
 		$(meson_feature X xwayland)
-		$(meson_use gles enable_gles32)
+		$(meson_use gles3 enable_gles32)
 	)
 
 	meson_src_configure

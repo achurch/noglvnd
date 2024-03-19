@@ -11,82 +11,75 @@ HOMEPAGE="https://github.com/WayfireWM/wayfire"
 if [[ ${PV} == 9999 ]]; then
 	inherit git-r3
 	EGIT_REPO_URI="https://github.com/WayfireWM/${PN}.git"
+	SLOT="0/0.8"
 else
 	SRC_URI="https://github.com/WayfireWM/${PN}/releases/download/v${PV}/${P}.tar.xz"
-	KEYWORDS="amd64 ~arm64 ~riscv ~x86"
+	KEYWORDS="~amd64 ~arm64 ~riscv"
+	SLOT="0/$(ver_cut 1-2)"
 fi
 
 LICENSE="MIT"
-SLOT="0"
-IUSE="+gles +system-wfconfig +system-wlroots X"
+IUSE="+gles3 test X"
+RESTRICT="!test? ( test )"
 
-DEPEND="
-	dev-libs/libinput:=
+# bundled wlroots has the following dependency string according to included headers.
+# wlroots[drm,gles2-renderer,libinput,x11-backend?,X?]
+# enable x11-backend with X and vice versa
+CDEPEND="
+	dev-cpp/nlohmann_json
+	dev-libs/glib:2
+	dev-libs/libevdev
+	>=dev-libs/libinput-1.7.0:=
 	dev-libs/wayland
-	gui-libs/gtk-layer-shell
+	>=dev-libs/wayland-protocols-1.12
+	gui-libs/wf-config:${SLOT}
+	gui-libs/wlroots:0/17[drm(+),libinput(+),x11-backend,X?]
 	media-libs/glm
-	media-libs/mesa:=[gles2,wayland,X?]
 	media-libs/libjpeg-turbo:=
 	media-libs/libpng:=
-	media-libs/freetype:=[X?]
-	virtual/opengl[X?,gles2]
-	x11-libs/libdrm
-	x11-libs/gtk+:3=[wayland,X?]
-	x11-libs/cairo[X?,svg(+)]
-	x11-libs/libxkbcommon[X?]
+	virtual/opengl
+	x11-libs/cairo
+	x11-libs/libxkbcommon
 	x11-libs/pango
 	x11-libs/pixman
 	X? (
-		x11-base/xwayland
-		x11-libs/libxcb
+		x11-libs/libxcb:=
 	)
 "
 
-if [[ ${PV} == 9999 ]] ; then
-	DEPEND+="
-		system-wfconfig? ( ~gui-libs/wf-config-9999:= )
-		!system-wfconfig? ( !gui-libs/wf-config )
-		system-wlroots? ( ~gui-libs/wlroots-9999:=[drm(+),libinput(+),x11-backend,X?] )
-		!system-wlroots? ( !gui-libs/wlroots )
-	"
-else
-	DEPEND+="
-		system-wfconfig? (
-			>=gui-libs/wf-config-0.7.1
-			<gui-libs/wf-config-0.8.0
-		)
-		!system-wfconfig? ( !gui-libs/wf-config )
-		system-wlroots? (
-			>=gui-libs/wlroots-0.16.0:0/16[drm(+),libinput(+),x11-backend,X?]
-		)
-		!system-wlroots? ( !gui-libs/wlroots )
-	"
-fi
-
 RDEPEND="
-	${DEPEND}
+	${CDEPEND}
 	x11-misc/xkeyboard-config
 "
-
+DEPEND="
+	${CDEPEND}
+	test? ( dev-cpp/doctest )
+"
 BDEPEND="
-	dev-libs/wayland-protocols
+	dev-util/wayland-scanner
 	virtual/pkgconfig
 "
 
 PATCHES=(
-	"${FILESDIR}"/${PN}-0.7.5-gcc13.patch
+	"${FILESDIR}/wayfire-0.8.0-dont-use-installed-config-h.patch"
 )
 
+src_prepare() {
+	default
+
+	sed -e "s:@EPREFIX@:${EPREFIX}:" \
+		"${FILESDIR}"/wayfire-session > "${T}"/wayfire-session || die
+	sed -e "s:@EPREFIX@:${EPREFIX}:" \
+		"${FILESDIR}"/wayfire-session.desktop > "${T}"/wayfire-session.desktop || die
+}
+
 src_configure() {
-	sed -e "s:@EPREFIX@:${EPREFIX}:" \
-	    "${FILESDIR}"/wayfire-session > "${T}"/wayfire-session || die
-	sed -e "s:@EPREFIX@:${EPREFIX}:" \
-	    "${FILESDIR}"/wayfire-session.desktop > "${T}"/wayfire-session.desktop || die
 	local emesonargs=(
-		$(meson_feature system-wfconfig use_system_wfconfig)
-		$(meson_feature system-wlroots use_system_wlroots)
+		$(meson_feature test tests)
 		$(meson_feature X xwayland)
-		$(meson_use gles enable_gles32)
+		$(meson_use gles3 enable_gles32)
+		-Duse_system_wfconfig=enabled
+		-Duse_system_wlroots=enabled
 	)
 
 	meson_src_configure
