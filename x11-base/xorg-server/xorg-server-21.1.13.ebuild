@@ -11,14 +11,15 @@ EGIT_REPO_URI="https://gitlab.freedesktop.org/xorg/xserver.git"
 DESCRIPTION="X.Org X servers"
 SLOT="0/${PV}"
 if [[ ${PV} != 9999* ]]; then
-	KEYWORDS="~alpha ~amd64 ~arm ~arm64 ~hppa ~ia64 ~loong ~m68k ~mips ~ppc ~ppc64 ~riscv ~s390 ~sparc ~x86 ~amd64-linux ~x86-linux"
+	KEYWORDS="~alpha amd64 arm arm64 ~hppa ~ia64 ~loong ~m68k ~mips ppc ppc64 ~riscv ~s390 sparc x86 ~amd64-linux ~x86-linux"
 fi
 
 IUSE_SERVERS="xephyr xnest xorg xvfb"
 IUSE="${IUSE_SERVERS} debug +elogind libglvnd minimal selinux suid systemd test +udev unwind xcsecurity"
 RESTRICT="!test? ( test )"
 
-CDEPEND="libglvnd? (
+CDEPEND="
+	libglvnd? (
 		media-libs/libglvnd[X]
 		!app-eselect/eselect-opengl
 		!!x11-drivers/nvidia-drivers[-libglvnd(-)]
@@ -75,7 +76,7 @@ CDEPEND="libglvnd? (
 	)
 "
 DEPEND="${CDEPEND}
-	>=x11-base/xorg-proto-2024.1
+	>=x11-base/xorg-proto-2021.4.99.2
 	>=x11-libs/xtrans-1.3.5
 	media-fonts/font-util
 	test? ( >=x11-libs/libxcvt-0.1.0 )
@@ -97,18 +98,21 @@ REQUIRED_USE="!minimal? (
 	elogind? ( udev )
 	?? ( elogind systemd )"
 
+UPSTREAMED_PATCHES=(
+)
+
 PATCHES=(
 	"${UPSTREAMED_PATCHES[@]}"
 	"${FILESDIR}"/${PN}-1.12-unloadsubmodule.patch
 	# needed for new eselect-opengl, bug #541232
 	"${FILESDIR}"/${PN}-1.18-support-multiple-Files-sections.patch
+	# pending upstream backport, bug #885763
+	"${FILESDIR}"/${PN}-21.1.10-c99.patch
 )
 
 src_configure() {
 	# bug #835653
 	use x86 && replace-flags -Os -O2
-
-	use debug && EMESON_BUILDTYPE=debug
 
 	# localstatedir is used for the log location; we need to override the default
 	#	from ebuild.sh
@@ -116,6 +120,7 @@ src_configure() {
 	local emesonargs=(
 		--localstatedir "${EPREFIX}/var"
 		--sysconfdir "${EPREFIX}/etc/X11"
+		-Dbuildtype=$(usex debug debug plain)
 		-Db_ndebug=$(usex debug false true)
 		$(meson_use !minimal dri1)
 		$(meson_use !minimal dri2)
