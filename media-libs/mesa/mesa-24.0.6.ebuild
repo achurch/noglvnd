@@ -34,7 +34,7 @@ for card in ${VIDEO_CARDS}; do
 done
 
 IUSE="${IUSE_VIDEO_CARDS}
-	cpu_flags_x86_sse2 d3d9 debug libglvnd +llvm
+	cpu_flags_x86_sse2 d3d9 debug gles1 +gles2 libglvnd +llvm
 	lm-sensors opencl +opengl osmesa +proprietary-codecs selinux
 	test unwind vaapi valgrind vdpau vulkan
 	vulkan-overlay wayland +X xa zink +zstd"
@@ -57,13 +57,14 @@ REQUIRED_USE="
 	video_cards_r300?   ( x86? ( llvm ) amd64? ( llvm ) )
 	vdpau? ( X )
 	xa? ( X )
-	zink? ( opengl vulkan )
+	X? ( gles1? ( opengl ) gles2? ( opengl ) )
+	zink? ( vulkan || ( opengl gles1 gles2 ) )
 "
 
 LIBDRM_DEPSTRING=">=x11-libs/libdrm-2.4.119"
 RDEPEND="
 	>=dev-libs/expat-2.1.0-r3[${MULTILIB_USEDEP}]
-	>=sys-libs/zlib-1.2.9[${MULTILIB_USEDEP}]
+	>=sys-libs/zlib-1.2.8[${MULTILIB_USEDEP}]
 	unwind? ( sys-libs/libunwind[${MULTILIB_USEDEP}] )
 	libglvnd? (
 		>=media-libs/libglvnd-1.3.2[X?,${MULTILIB_USEDEP}]
@@ -97,7 +98,7 @@ RDEPEND="
 	vaapi? (
 		>=media-libs/libva-1.7.3:=[${MULTILIB_USEDEP}]
 	)
-	vdpau? ( >=x11-libs/libvdpau-1.5:=[${MULTILIB_USEDEP}] )
+	vdpau? ( >=x11-libs/libvdpau-1.4:=[${MULTILIB_USEDEP}] )
 	video_cards_radeonsi? ( virtual/libelf:0=[${MULTILIB_USEDEP}] )
 	selinux? ( sys-libs/libselinux[${MULTILIB_USEDEP}] )
 	wayland? ( >=dev-libs/wayland-1.18.0[${MULTILIB_USEDEP}] )
@@ -107,7 +108,7 @@ RDEPEND="
 		>=x11-libs/libxshmfence-1.1[${MULTILIB_USEDEP}]
 		>=x11-libs/libXext-1.3.2[${MULTILIB_USEDEP}]
 		>=x11-libs/libXxf86vm-1.1.3[${MULTILIB_USEDEP}]
-		>=x11-libs/libxcb-1.17:=[${MULTILIB_USEDEP}]
+		>=x11-libs/libxcb-1.13:=[${MULTILIB_USEDEP}]
 		x11-libs/libXfixes[${MULTILIB_USEDEP}]
 		x11-libs/xcb-util-keysyms[${MULTILIB_USEDEP}]
 	)
@@ -124,9 +125,9 @@ RDEPEND="${RDEPEND}
 "
 
 DEPEND="${RDEPEND}
-	video_cards_d3d12? ( >=dev-util/directx-headers-1.613.0[${MULTILIB_USEDEP}] )
+	video_cards_d3d12? ( >=dev-util/directx-headers-1.611.0[${MULTILIB_USEDEP}] )
 	valgrind? ( dev-debug/valgrind )
-	wayland? ( >=dev-libs/wayland-protocols-1.34 )
+	wayland? ( >=dev-libs/wayland-protocols-1.30 )
 	X? (
 		x11-libs/libXrandr[${MULTILIB_USEDEP}]
 		x11-base/xorg-proto
@@ -143,12 +144,18 @@ BDEPEND="
 	app-alternatives/lex
 	virtual/pkgconfig
 	$(python_gen_any_dep ">=dev-python/mako-0.8.0[\${PYTHON_USEDEP}]")
-	video_cards_intel? (
-		~dev-util/intel_clc-${PV}
-		dev-libs/libclc[spirv(-)]
-		$(python_gen_any_dep "dev-python/ply[\${PYTHON_USEDEP}]")
+	vulkan? (
+		dev-util/glslang
+		llvm? (
+			video_cards_intel? (
+				amd64? (
+					$(python_gen_any_dep "dev-python/ply[\${PYTHON_USEDEP}]")
+					~dev-util/intel_clc-${PV}
+					dev-libs/libclc[spirv(-)]
+				)
+			)
+		)
 	)
-	vulkan? ( dev-util/glslang )
 	wayland? ( dev-util/wayland-scanner )
 "
 
@@ -158,6 +165,10 @@ x86? (
 	usr/lib/libOSMesa.so.8.0.0
 	libglvnd? ( usr/lib/libGLX_mesa.so.0.0.0 )
 )"
+
+PATCHES=(
+	"${FILESDIR}"/24.0.4-dzn-Include-vulkan_core.h-instead-of-vulkan.h-in-the.patch
+)
 
 pkg_pretend() {
 	if use vulkan; then
@@ -354,13 +365,31 @@ multilib_src_configure() {
 	use vulkan-overlay && vulkan_layers+=",overlay"
 	emesonargs+=(-Dvulkan-layers=${vulkan_layers#,})
 
+	if use llvm && use vulkan && use video_cards_intel && use amd64; then
+		emesonargs+=(-Dintel-clc=system)
+	else
+		emesonargs+=(-Dintel-clc=disabled)
+	fi
+
+	if use opengl || use gles1 || use gles2; then
+		emesonargs+=(
+			-Degl=enabled
+			-Dgbm=enabled
+			$(meson_use libglvnd glvnd)
+		)
+	else
+		emesonargs+=(
+			-Degl=disabled
+			-Dgbm=disabled
+			-Dglvnd=false
+		)
+	fi
+
 	if use opengl && use X; then
 		emesonargs+=(-Dglx=dri)
 	else
 		emesonargs+=(-Dglx=disabled)
 	fi
-
-	use debug && EMESON_BUILDTYPE=debug
 
 	emesonargs+=(
 		$(meson_use test build-tests)
@@ -368,25 +397,20 @@ multilib_src_configure() {
 		-Ddri3=enabled
 		-Dexpat=enabled
 		$(meson_use opengl)
-		$(meson_feature opengl gbm)
-		$(meson_feature opengl gles1)
-		$(meson_feature opengl gles2)
-		$(meson_feature opengl glvnd)
-		$(meson_feature opengl egl)
-		$(meson_use libglvnd glvnd)
+		$(meson_feature gles1)
+		$(meson_feature gles2)
 		$(meson_feature llvm)
 		$(meson_feature lm-sensors lmsensors)
 		$(meson_use osmesa)
 		$(meson_use selinux)
 		$(meson_feature unwind libunwind)
-		$(meson_native_use_feature video_cards_intel intel-rt)
 		$(meson_feature zstd)
 		$(meson_use cpu_flags_x86_sse2 sse2)
-		-Dintel-clc=$(usex video_cards_intel system auto)
 		-Dvalgrind=$(usex valgrind auto disabled)
 		-Dvideo-codecs=$(usex proprietary-codecs "all" "all_free")
 		-Dgallium-drivers=$(driver_list "${GALLIUM_DRIVERS[*]}")
 		-Dvulkan-drivers=$(driver_list "${VULKAN_DRIVERS[*]}")
+		-Dbuildtype=$(usex debug debug plain)
 		-Db_ndebug=$(usex debug false true)
 	)
 	meson_src_configure
