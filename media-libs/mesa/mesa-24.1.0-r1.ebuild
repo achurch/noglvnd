@@ -52,7 +52,7 @@ for card in ${VIDEO_CARDS}; do
 done
 
 IUSE="${IUSE_VIDEO_CARDS}
-	cpu_flags_x86_sse2 d3d9 debug libglvnd +llvm
+	cpu_flags_x86_sse2 d3d9 debug +llvm
 	lm-sensors opencl +opengl osmesa +proprietary-codecs selinux
 	test unwind vaapi valgrind vdpau vulkan
 	vulkan-overlay wayland +X xa zink +zstd"
@@ -82,15 +82,9 @@ REQUIRED_USE="
 LIBDRM_DEPSTRING=">=x11-libs/libdrm-2.4.119"
 RDEPEND="
 	>=dev-libs/expat-2.1.0-r3[${MULTILIB_USEDEP}]
+	>=media-libs/libglvnd-1.3.2[X?,${MULTILIB_USEDEP}]
 	>=sys-libs/zlib-1.2.9[${MULTILIB_USEDEP}]
 	unwind? ( sys-libs/libunwind[${MULTILIB_USEDEP}] )
-	libglvnd? (
-		>=media-libs/libglvnd-1.3.2[X?,${MULTILIB_USEDEP}]
-		!app-eselect/eselect-opengl
-	)
-	!libglvnd? (
-		>=app-eselect/eselect-opengl-1.3.0
-	)
 	llvm? (
 		$(llvm_gen_dep "
 			sys-devel/llvm:\${LLVM_SLOT}[llvm_targets_AMDGPU(+),${MULTILIB_USEDEP}]
@@ -185,7 +179,7 @@ QA_WX_LOAD="
 x86? (
 	usr/lib/libglapi.so.0.0.0
 	usr/lib/libOSMesa.so.8.0.0
-	libglvnd? ( usr/lib/libGLX_mesa.so.0.0.0 )
+	usr/lib/libGLX_mesa.so.0.0.0
 )"
 
 src_unpack() {
@@ -434,7 +428,6 @@ multilib_src_configure() {
 		$(meson_feature opengl gles2)
 		$(meson_feature opengl glvnd)
 		$(meson_feature opengl egl)
-		$(meson_use libglvnd glvnd)
 		$(meson_feature llvm)
 		$(meson_feature lm-sensors lmsensors)
 		$(meson_use osmesa)
@@ -459,14 +452,6 @@ multilib_src_configure() {
 
 multilib_src_test() {
 	meson_src_test -t 100
-}
-
-pkg_postinst() {
-	if ! use libglvnd; then
-		# Switch to the xorg implementation.
-		echo
-		eselect opengl set --use-old ${OPENGL_DIR}
-	fi
 }
 
 # $1 - VIDEO_CARDS flag (check skipped for "--")

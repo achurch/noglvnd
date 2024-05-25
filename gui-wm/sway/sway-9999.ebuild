@@ -30,11 +30,11 @@ DEPEND="
 	sys-auth/seatd:=
 	dev-libs/libpcre2
 	>=dev-libs/wayland-1.20.0
-	virtual/opengl[gles2]
 	x11-libs/cairo
 	>=x11-libs/libxkbcommon-1.5.0:0=
 	x11-libs/pango
 	x11-libs/pixman
+	media-libs/libglvnd
 	swaybar? ( x11-libs/gdk-pixbuf:2 )
 	tray? ( || (
 		sys-apps/systemd
