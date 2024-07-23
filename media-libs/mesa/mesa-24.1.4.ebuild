@@ -170,7 +170,6 @@ BDEPEND="
 	$(python_gen_any_dep "
 		>=dev-python/mako-0.8.0[\${PYTHON_USEDEP}]
 		dev-python/packaging[\${PYTHON_USEDEP}]
-		dev-python/pyyaml[\${PYTHON_USEDEP}]
 	")
 	video_cards_intel? (
 		~dev-util/intel_clc-${PV}
@@ -269,8 +268,7 @@ pkg_pretend() {
 
 python_check_deps() {
 	python_has_version -b ">=dev-python/mako-0.8.0[${PYTHON_USEDEP}]" &&
-	python_has_version -b "dev-python/packaging[${PYTHON_USEDEP}]" &&
-	python_has_version -b "dev-python/pyyaml[${PYTHON_USEDEP}]" || return 1
+	python_has_version -b "dev-python/packaging[${PYTHON_USEDEP}]" || return 1
 	if use llvm && use vulkan && use video_cards_intel && use amd64; then
 		python_has_version -b "dev-python/ply[${PYTHON_USEDEP}]" || return 1
 	fi
