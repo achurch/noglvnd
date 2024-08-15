@@ -6,15 +6,15 @@ EAPI=8
 LLVM_COMPAT=( {15..18} )
 LLVM_OPTIONAL=1
 CARGO_OPTIONAL=1
-PYTHON_COMPAT=( python3_{10..13} )
+PYTHON_COMPAT=( python3_{10..12} )
 
 inherit flag-o-matic llvm-r1 meson-multilib python-any-r1 linux-info rust-toolchain toolchain-funcs
 
 MY_P="${P/_/-}"
 
 CRATES="
-	syn@2.0.68
-	proc-macro2@1.0.86
+	syn@2.0.39
+	proc-macro2@1.0.70
 	quote@1.0.33
 	unicode-ident@1.0.12
 	paste@1.0.14
