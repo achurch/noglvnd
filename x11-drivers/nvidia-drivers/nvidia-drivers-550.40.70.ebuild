@@ -26,8 +26,10 @@ S=${WORKDIR}
 LICENSE="NVIDIA-r2 Apache-2.0 BSD BSD-2 GPL-2 MIT ZLIB curl openssl"
 SLOT="0/vulkan"
 KEYWORDS="-* ~amd64"
-IUSE="+X abi_x86_32 abi_x86_64 egl kernel-open libglvnd persistenced powerd +static-libs +tools wayland"
+IUSE="+X abi_x86_32 abi_x86_64 kernel-open persistenced powerd +static-libs +tools wayland"
 REQUIRED_USE="kernel-open? ( modules )"
+
+IUSE+=" egl libglvnd"
 
 COMMON_DEPEND="
 	acct-group/video
