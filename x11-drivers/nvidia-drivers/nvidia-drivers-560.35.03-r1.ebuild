@@ -7,7 +7,7 @@ MODULES_OPTIONAL_IUSE=+modules
 inherit desktop flag-o-matic linux-mod-r1 readme.gentoo-r1
 inherit systemd toolchain-funcs unpacker user-info
 
-MODULES_KERNEL_MAX=6.10
+MODULES_KERNEL_MAX=6.11
 NV_URI="https://download.nvidia.com/XFree86/"
 
 DESCRIPTION="NVIDIA Accelerated Graphics Driver"
@@ -99,10 +99,15 @@ QA_PREBUILT="lib/firmware/* opt/bin/* usr/lib*"
 PATCHES=(
 	"${FILESDIR}"/nvidia-modprobe-390.141-uvm-perms.patch
 	"${FILESDIR}"/nvidia-settings-530.30.02-desktop.patch
+	"${FILESDIR}"/nvidia-drivers-550.107.02-kernel-6.11-fbdev.patch
 )
 
 pkg_setup() {
 	use modules && [[ ${MERGE_TYPE} != binary ]] || return
+
+	# do early before linux-mod-r1 so can use chkconfig to setup CONFIG_CHECK
+	get_version
+	require_configured_kernel
 
 	local CONFIG_CHECK="
 		PROC_FS
@@ -114,15 +119,23 @@ pkg_setup() {
 		$(usev powerd '~CPU_FREQ')
 	"
 
-	local ERROR_DRM_KMS_HELPER="CONFIG_DRM_KMS_HELPER: is not set but needed for Xorg auto-detection
-	of drivers (no custom config), and for wayland / nvidia-drm.modeset=1.
-	Cannot be directly selected in the kernel's menuconfig, and may need
-	selection of a DRM device even if unused, e.g. CONFIG_DRM_AMDGPU=m or
-	DRM_I915=y, DRM_NOUVEAU=m also acceptable if a module and not built-in."
+	kernel_is -ge 6 11 && linux_chkconfig_present DRM_FBDEV_EMULATION &&
+		CONFIG_CHECK+=" DRM_TTM_HELPER"
 
 	use amd64 && kernel_is -ge 5 8 && CONFIG_CHECK+=" X86_PAT" #817764
 
 	use kernel-open && CONFIG_CHECK+=" MMU_NOTIFIER" #843827
+
+	local drm_helper_msg="Cannot be directly selected in the kernel's config menus, and may need
+	selection of a DRM device even if unused, e.g. CONFIG_DRM_AMDGPU=m or
+	DRM_QXL=m, DRM_NOUVEAU=m also acceptable if a module and *not* built-in."
+	local ERROR_DRM_KMS_HELPER="CONFIG_DRM_KMS_HELPER: is not set but needed for Xorg auto-detection
+	of drivers (no custom config), and for wayland / nvidia-drm.modeset=1.
+	${drm_helper_msg}"
+	local ERROR_DRM_TTM_HELPER="CONFIG_DRM_TTM_HELPER: is not set but is needed to compile when using
+	kernel version 6.11.x or newer while DRM_FBDEV_EMULATION is set.
+	${drm_helper_msg}
+	Many DRM devices like DRM_I915 cannot currently be used to enable this."
 	local ERROR_MMU_NOTIFIER="CONFIG_MMU_NOTIFIER: is not set but needed to build with USE=kernel-open.
 	Cannot be directly selected in the kernel's menuconfig, and may need
 	selection of another option that requires it such as CONFIG_KVM."
@@ -419,6 +432,22 @@ documentation that is installed alongside this README."
 		doins nvidia-dbus.conf
 	fi
 
+	# enabling is needed for sleep to work properly and little reason not to do
+	# it unconditionally for a better user experience
+	: "$(systemd_get_systemunitdir)"
+	local unitdir=${_#"${EPREFIX}"}
+	# not using relative symlinks to match systemd's own links
+	dosym {"${unitdir}",/etc/systemd/system/systemd-hibernate.service.wants}/nvidia-hibernate.service
+	dosym {"${unitdir}",/etc/systemd/system/systemd-hibernate.service.wants}/nvidia-resume.service
+	dosym {"${unitdir}",/etc/systemd/system/systemd-suspend.service.wants}/nvidia-suspend.service
+	dosym {"${unitdir}",/etc/systemd/system/systemd-suspend.service.wants}/nvidia-resume.service
+	# also add a custom elogind hook to do the equivalent of the above
+	exeinto /usr/lib/elogind/system-sleep
+	newexe "${FILESDIR}"/system-sleep.elogind nvidia
+	# <elogind-255.5 used a different path (bug #939216), keep a compat symlink
+	# TODO: cleanup after 255.5 been stable for a few months
+	dosym {/usr/lib,/"${libdir}"}/elogind/system-sleep/nvidia
+
 	# symlink non-versioned so nvidia-settings can use it even if misdetected
 	dosym nvidia-application-profiles-${PV}-key-documentation \
 		${paths[APPLICATION_PROFILE]}/nvidia-application-profiles-key-documentation
@@ -432,6 +461,13 @@ documentation that is installed alongside this README."
 	# ebuilds should handle manually if need others or addwrite)
 	insinto /etc/sandbox.d
 	newins - 20nvidia <<<'SANDBOX_PREDICT="/dev/nvidiactl:/dev/nvidia-caps:/dev/char"'
+
+	# Dracut does not include /etc/modprobe.d if hostonly=no, but we do need this
+	# to ensure that the nouveau blacklist is applied
+	# https://github.com/dracut-ng/dracut-ng/issues/674
+	# https://bugs.gentoo.org/932781
+	echo "install_items+=\" ${EPREFIX}/etc/modprobe.d/nvidia.conf \"" >> \
+		"${ED}/usr/lib/dracut/dracut.conf.d/10-${PN}.conf" || die
 }
 
 pkg_preinst() {
@@ -530,5 +566,45 @@ pkg_postinst() {
 		elog "If using a Turing/Ampere+ GPU (aka GTX 1650+), note that >=nvidia-drivers-555"
 		elog "enables the use of the GSP firmware by default. *If* experience regressions,"
 		elog "please see '${EROOT}/etc/modprobe.d/nvidia.conf' to optionally disable."
+	fi
+
+	# these can be removed after some time, only to help the transition
+	# given users are unlikely to do further custom solutions if it works
+	# (see also https://github.com/elogind/elogind/issues/272)
+	if grep -riq "^[^#]*HandleNvidiaSleep=yes" "${EROOT}"/etc/elogind/sleep.conf.d/ 2>/dev/null
+	then
+		ewarn
+		ewarn "!!! WARNING !!!"
+		ewarn "Detected HandleNvidiaSleep=yes in ${EROOT}/etc/elogind/sleep.conf.d/."
+		ewarn "This 'could' cause issues if used in combination with the new hook"
+		ewarn "installed by the ebuild to handle sleep using the official upstream"
+		ewarn "script. It is recommended to disable the option."
+	fi
+	if [[ $(realpath "${EROOT}"{/etc,{/usr,}/lib*}/elogind/system-sleep | sort | uniq | \
+		xargs -d'\n' grep -Ril nvidia 2>/dev/null | wc -l) -gt 2 ]]
+	then
+		ewarn
+		ewarn "!!! WARNING !!!"
+		ewarn "Detected a custom script at ${EROOT}{/etc,{/usr,}/lib*}/elogind/system-sleep"
+		ewarn "referencing NVIDIA. This version of ${PN} has installed its own"
+		ewarn "hook at ${EROOT}/usr/lib/elogind/system-sleep/nvidia and it is recommended"
+		ewarn "to remove the custom one to avoid potential issues."
+		ewarn
+		ewarn "Feel free to ignore this warning if you know the other NVIDIA-related"
+		ewarn "scripts can be used together. The warning will be removed in the future."
+	fi
+	if [[ ${REPLACING_VERSIONS##* } ]] &&
+		ver_test ${REPLACING_VERSIONS##* } -lt 560.35.03-r1 # may get repeated
+	then
+		elog
+		elog "For suspend/sleep, 'NVreg_PreserveVideoMemoryAllocations=1' is now default"
+		elog "with this version of ${PN}. This is recommended (or required) by"
+		elog "major DEs especially with wayland but, *if* experience regressions with"
+		elog "suspend, try reverting to =0 in '${EROOT}/etc/modprobe.d/nvidia.conf'."
+		elog
+		elog "May notably be an issue when using neither systemd nor elogind to suspend."
+		elog
+		elog "Also, the systemd suspend/hibernate/resume services are now enabled by"
+		elog "default, and for openrc+elogind a similar hook has been installed."
 	fi
 }
