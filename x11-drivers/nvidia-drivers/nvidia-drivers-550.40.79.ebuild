@@ -8,25 +8,28 @@ inherit desktop flag-o-matic linux-mod-r1 readme.gentoo-r1
 inherit systemd toolchain-funcs unpacker user-info
 
 MODULES_KERNEL_MAX=6.11
-NV_URI="https://download.nvidia.com/XFree86/"
+NV_PIN=550.127.05
 
 DESCRIPTION="NVIDIA Accelerated Graphics Driver"
-HOMEPAGE="https://www.nvidia.com/download/index.aspx"
+HOMEPAGE="https://developer.nvidia.com/vulkan-driver"
 SRC_URI="
-	amd64? ( ${NV_URI}Linux-x86_64/${PV}/NVIDIA-Linux-x86_64-${PV}.run )
-	arm64? ( ${NV_URI}Linux-aarch64/${PV}/NVIDIA-Linux-aarch64-${PV}.run )
-	$(printf "${NV_URI}%s/%s-${PV}.tar.bz2 " \
+	https://developer.nvidia.com/downloads/vulkan-beta-${PV//.}-linux
+		-> NVIDIA-Linux-x86_64-${PV}.run
+	$(printf "https://download.nvidia.com/XFree86/%s/%s-${NV_PIN}.tar.bz2 " \
 		nvidia-{installer,modprobe,persistenced,settings,xconfig}{,})
-	${NV_URI}NVIDIA-kernel-module-source/NVIDIA-kernel-module-source-${PV}.tar.xz
+	https://github.com/NVIDIA/open-gpu-kernel-modules/archive/refs/tags/${PV}.tar.gz
+		-> open-gpu-kernel-modules-${PV}.tar.gz
 "
 # nvidia-installer is unused but here for GPL-2's "distribute sources"
 S=${WORKDIR}
 
 LICENSE="NVIDIA-r2 Apache-2.0 BSD BSD-2 GPL-2 MIT ZLIB curl openssl"
-SLOT="0/${PV%%.*}"
-KEYWORDS="-* amd64 ~arm64"
+SLOT="0/vulkan"
+KEYWORDS="-* ~amd64"
 IUSE="+X abi_x86_32 abi_x86_64 kernel-open persistenced powerd +static-libs +tools wayland"
 REQUIRED_USE="kernel-open? ( modules )"
+
+IUSE+=" egl libglvnd"
 
 COMMON_DEPEND="
 	acct-group/video
@@ -54,9 +57,13 @@ RDEPEND="
 	dev-libs/openssl:0/3
 	sys-libs/glibc
 	X? (
-		media-libs/libglvnd[X,abi_x86_32(-)?]
 		x11-libs/libX11[abi_x86_32(-)?]
 		x11-libs/libXext[abi_x86_32(-)?]
+		!libglvnd? ( >=app-eselect/eselect-opengl-1.0.9 )
+		libglvnd? (
+			media-libs/libglvnd[X,abi_x86_32(-)?]
+			!app-eselect/eselect-opengl
+		)
 	)
 	powerd? ( sys-apps/dbus[abi_x86_32(-)?] )
 	wayland? (
@@ -72,12 +79,12 @@ DEPEND="
 		x11-libs/libXext
 	)
 	tools? (
-		media-libs/libglvnd
 		sys-apps/dbus
 		x11-base/xorg-proto
 		x11-libs/libXrandr
 		x11-libs/libXv
 		x11-libs/libvdpau
+		libglvnd? ( media-libs/libglvnd )
 	)
 "
 BDEPEND="
@@ -136,11 +143,11 @@ pkg_setup() {
 
 src_prepare() {
 	# make patches usable across versions
-	rm nvidia-modprobe && mv nvidia-modprobe{-${PV},} || die
-	rm nvidia-persistenced && mv nvidia-persistenced{-${PV},} || die
-	rm nvidia-settings && mv nvidia-settings{-${PV},} || die
-	rm nvidia-xconfig && mv nvidia-xconfig{-${PV},} || die
-	mv NVIDIA-kernel-module-source-${PV} kernel-module-source || die
+	rm nvidia-modprobe && mv nvidia-modprobe{-${NV_PIN},} || die
+	rm nvidia-persistenced && mv nvidia-persistenced{-${NV_PIN},} || die
+	rm nvidia-settings && mv nvidia-settings{-${NV_PIN},} || die
+	rm nvidia-xconfig && mv nvidia-xconfig{-${NV_PIN},} || die
+	mv open-gpu-kernel-modules-${PV} kernel-module-source || die
 
 	default
 
@@ -240,6 +247,7 @@ src_install() {
 		[GLVND_EGL_ICD_JSON]=/usr/share/glvnd/egl_vendor.d
 		[OPENGL_DATA]=/usr/share/nvidia
 		[VULKAN_ICD_JSON]=/usr/share/vulkan
+		[VULKANSC_ICD_JSON]=/usr/share/vulkansc
 		[WINE_LIB]=/usr/${libdir}/nvidia/wine
 		[XORG_OUTPUTCLASS_CONFIG]=/usr/share/X11/xorg.conf.d
 
@@ -263,7 +271,7 @@ src_install() {
 		installer nvpd # handled separately / built from source
 	)
 	local skip_types=(
-		GLVND_LIB GLVND_SYMLINK EGL_CLIENT.\* GLX_CLIENT.\* # media-libs/libglvnd
+		$(usex libglvnd 'GLVND_LIB GLVND_SYMLINK EGL_CLIENT.\* GLX_CLIENT.\*' 'GLVND_EGL_ICD_JSON')
 		OPENCL_WRAPPER.\* # virtual/opencl
 		DOCUMENTATION DOT_DESKTOP .\*_SRC DKMS_CONF SYSTEMD_UNIT # handled separately / unused
 	)
@@ -377,6 +385,9 @@ documentation that is installed alongside this README."
 		else
 			die "No known installation path for ${m[0]}"
 		fi
+		if ! use libglvnd && [[ ${m[2]} =~ GLVND_LIB|GLVND_SYMLINK|_CLIENT_ ]]; then
+			into=${into}/opengl/nvidia/lib
+		fi
 		[[ ${m[3]: -2} == ?/ ]] && into+=/${m[3]%/}
 		[[ ${m[4]: -2} == ?/ ]] && into+=/${m[4]%/}
 
@@ -394,6 +405,11 @@ documentation that is installed alongside this README."
 		doins ${m[0]}
 	done < .manifest || die
 	insopts -m0644 # reset
+
+	if ! use libglvnd && use egl; then
+		insinto /usr/share/glvnd/egl_vendor.d
+		doins 10_nvidia.json
+	fi
 
 	# MODULE:installer non-skipped extras
 	: "$(systemd_get_sleepdir)"
@@ -443,12 +459,13 @@ documentation that is installed alongside this README."
 	insinto /etc/sandbox.d
 	newins - 20nvidia <<<'SANDBOX_PREDICT="/dev/nvidiactl:/dev/nvidia-caps:/dev/char"'
 
-	# Dracut does not include /etc/modprobe.d if hostonly=no, but we do need this
-	# to ensure that the nouveau blacklist is applied
-	# https://github.com/dracut-ng/dracut-ng/issues/674
-	# https://bugs.gentoo.org/932781
-	echo "install_items+=\" ${EPREFIX}/etc/modprobe.d/nvidia.conf \"" >> \
-		"${ED}/usr/lib/dracut/dracut.conf.d/10-${PN}.conf" || die
+	# dracut does not use /etc/modprobe.d if hostonly=no, but want to make sure
+	# our settings are used for bug 932781#c8 and nouveau blacklist if either
+	# modules are included (however, just best-effort without initramfs regen)
+	if use modules; then
+		echo "install_items+=\" ${EPREFIX}/etc/modprobe.d/nvidia.conf \"" >> \
+			"${ED}"/usr/lib/dracut/dracut.conf.d/10-${PN}.conf || die
+	fi
 }
 
 pkg_preinst() {
@@ -479,6 +496,11 @@ pkg_preinst() {
 
 pkg_postinst() {
 	linux-mod-r1_pkg_postinst
+
+	if ! use libglvnd; then
+		# Switch to the nvidia implementation
+		use X && "${ROOT}"/usr/bin/eselect opengl set --use-old nvidia
+	fi
 
 	readme.gentoo_print_elog
 
@@ -546,8 +568,8 @@ pkg_postinst() {
 		ewarn "installed by the ebuild to handle sleep using the official upstream"
 		ewarn "script. It is recommended to disable the option."
 	fi
-	if [[ $(realpath "${EROOT}"{/etc,{/usr,}/lib*}/elogind/system-sleep | sort | uniq | \
-		xargs -d'\n' grep -Ril nvidia 2>/dev/null | wc -l) -gt 2 ]]
+	if [[ $(realpath "${EROOT}"{/etc,{/usr,}/lib*}/elogind/system-sleep 2>/dev/null | \
+		sort | uniq | xargs -d'\n' grep -Ril nvidia 2>/dev/null | wc -l) -gt 2 ]]
 	then
 		ewarn
 		ewarn "!!! WARNING !!!"
@@ -560,7 +582,7 @@ pkg_postinst() {
 		ewarn "scripts can be used together. The warning will be removed in the future."
 	fi
 	if [[ ${REPLACING_VERSIONS##* } ]] &&
-		ver_test ${REPLACING_VERSIONS##* } -lt 550.107.02-r1 # may get repeated
+		ver_test ${REPLACING_VERSIONS##* } -lt 550.40.71-r1 # may get repeated
 	then
 		elog
 		elog "For suspend/sleep, 'NVreg_PreserveVideoMemoryAllocations=1' is now default"

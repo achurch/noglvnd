@@ -11,7 +11,7 @@ MODULES_KERNEL_MAX=6.11
 NV_URI="https://download.nvidia.com/XFree86/"
 
 DESCRIPTION="NVIDIA Accelerated Graphics Driver"
-HOMEPAGE="https://www.nvidia.com/download/index.aspx"
+HOMEPAGE="https://www.nvidia.com/"
 SRC_URI="
 	amd64? ( ${NV_URI}Linux-x86_64/${PV}/NVIDIA-Linux-x86_64-${PV}.run )
 	arm64? ( ${NV_URI}Linux-aarch64/${PV}/NVIDIA-Linux-aarch64-${PV}.run )
@@ -70,6 +70,7 @@ RDEPEND="
 	wayland? (
 		>=gui-libs/egl-gbm-1.1.1-r2[abi_x86_32(-)?]
 		>=gui-libs/egl-wayland-1.1.13.1[abi_x86_32(-)?]
+		X? ( gui-libs/egl-x11[abi_x86_32(-)?] )
 	)
 "
 DEPEND="
@@ -99,7 +100,6 @@ QA_PREBUILT="lib/firmware/* opt/bin/* usr/lib*"
 PATCHES=(
 	"${FILESDIR}"/nvidia-modprobe-390.141-uvm-perms.patch
 	"${FILESDIR}"/nvidia-settings-530.30.02-desktop.patch
-	"${FILESDIR}"/nvidia-drivers-550.107.02-kernel-6.11-fbdev.patch
 )
 
 pkg_setup() {
@@ -205,6 +205,8 @@ src_compile() {
 			filter-flags -fno-plt #912949
 			filter-lto
 			CC=${KERNEL_CC} CXX=${KERNEL_CXX} strip-unsupported-flags
+
+			LDFLAGS=$(raw-ldflags)
 		fi
 
 		local modlist=( nvidia{,-drm,-modeset,-peermem,-uvm}=${modlistargs} )
@@ -264,6 +266,8 @@ src_install() {
 		libnvidia-{gtk,wayland-client} nvidia-{settings,xconfig} # from source
 		libnvidia-egl-gbm 15_nvidia_gbm # gui-libs/egl-gbm
 		libnvidia-egl-wayland 10_nvidia_wayland # gui-libs/egl-wayland
+		libnvidia-egl-xcb 20_nvidia_xcb.json # gui-libs/egl-x11
+		libnvidia-egl-xlib 20_nvidia_xlib.json # gui-libs/egl-x11
 		libnvidia-pkcs11.so # using the openssl3 version instead
 	)
 	local skip_modules=(
@@ -399,8 +403,8 @@ documentation that is installed alongside this README."
 			continue
 		fi
 		# avoid portage warning due to missing soname links in manifest
-		[[ ${m[0]} =~ .*((libnvidia-ngx.so|libnvidia-egl-gbm.so).*) ]] &&
-			dosym ${BASH_REMATCH[1]} ${into}/${BASH_REMATCH[2]}.1
+		[[ ${m[0]} =~ ^libnvidia-ngx.so ]] &&
+			dosym ${m[0]} ${into}/${m[0]%.so*}.so.1
 
 		printf -v m[1] %o $((m[1] | 0200)) # 444->644
 		insopts -m${m[1]}
@@ -462,12 +466,13 @@ documentation that is installed alongside this README."
 	insinto /etc/sandbox.d
 	newins - 20nvidia <<<'SANDBOX_PREDICT="/dev/nvidiactl:/dev/nvidia-caps:/dev/char"'
 
-	# Dracut does not include /etc/modprobe.d if hostonly=no, but we do need this
-	# to ensure that the nouveau blacklist is applied
-	# https://github.com/dracut-ng/dracut-ng/issues/674
-	# https://bugs.gentoo.org/932781
-	echo "install_items+=\" ${EPREFIX}/etc/modprobe.d/nvidia.conf \"" >> \
-		"${ED}/usr/lib/dracut/dracut.conf.d/10-${PN}.conf" || die
+	# dracut does not use /etc/modprobe.d if hostonly=no, but want to make sure
+	# our settings are used for bug 932781#c8 and nouveau blacklist if either
+	# modules are included (however, just best-effort without initramfs regen)
+	if use modules; then
+		echo "install_items+=\" ${EPREFIX}/etc/modprobe.d/nvidia.conf \"" >> \
+			"${ED}"/usr/lib/dracut/dracut.conf.d/10-${PN}.conf || die
+	fi
 }
 
 pkg_preinst() {
@@ -580,8 +585,8 @@ pkg_postinst() {
 		ewarn "installed by the ebuild to handle sleep using the official upstream"
 		ewarn "script. It is recommended to disable the option."
 	fi
-	if [[ $(realpath "${EROOT}"{/etc,{/usr,}/lib*}/elogind/system-sleep | sort | uniq | \
-		xargs -d'\n' grep -Ril nvidia 2>/dev/null | wc -l) -gt 2 ]]
+	if [[ $(realpath "${EROOT}"{/etc,{/usr,}/lib*}/elogind/system-sleep 2>/dev/null | \
+		sort | uniq | xargs -d'\n' grep -Ril nvidia 2>/dev/null | wc -l) -gt 2 ]]
 	then
 		ewarn
 		ewarn "!!! WARNING !!!"

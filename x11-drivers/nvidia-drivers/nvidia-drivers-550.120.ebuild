@@ -11,7 +11,7 @@ MODULES_KERNEL_MAX=6.11
 NV_URI="https://download.nvidia.com/XFree86/"
 
 DESCRIPTION="NVIDIA Accelerated Graphics Driver"
-HOMEPAGE="https://www.nvidia.com/download/index.aspx"
+HOMEPAGE="https://www.nvidia.com/"
 SRC_URI="
 	amd64? ( ${NV_URI}Linux-x86_64/${PV}/NVIDIA-Linux-x86_64-${PV}.run )
 	arm64? ( ${NV_URI}Linux-aarch64/${PV}/NVIDIA-Linux-aarch64-${PV}.run )
@@ -24,7 +24,7 @@ S=${WORKDIR}
 
 LICENSE="NVIDIA-r2 Apache-2.0 BSD BSD-2 GPL-2 MIT ZLIB curl openssl"
 SLOT="0/${PV%%.*}"
-KEYWORDS="-* ~amd64 ~arm64"
+KEYWORDS="-* amd64 ~arm64"
 IUSE="+X abi_x86_32 abi_x86_64 kernel-open persistenced powerd +static-libs +tools wayland"
 REQUIRED_USE="kernel-open? ( modules )"
 
@@ -456,12 +456,13 @@ documentation that is installed alongside this README."
 	insinto /etc/sandbox.d
 	newins - 20nvidia <<<'SANDBOX_PREDICT="/dev/nvidiactl:/dev/nvidia-caps:/dev/char"'
 
-	# Dracut does not include /etc/modprobe.d if hostonly=no, but we do need this
-	# to ensure that the nouveau blacklist is applied
-	# https://github.com/dracut-ng/dracut-ng/issues/674
-	# https://bugs.gentoo.org/932781
-	echo "install_items+=\" ${EPREFIX}/etc/modprobe.d/nvidia.conf \"" >> \
-		"${ED}/usr/lib/dracut/dracut.conf.d/10-${PN}.conf" || die
+	# dracut does not use /etc/modprobe.d if hostonly=no, but want to make sure
+	# our settings are used for bug 932781#c8 and nouveau blacklist if either
+	# modules are included (however, just best-effort without initramfs regen)
+	if use modules; then
+		echo "install_items+=\" ${EPREFIX}/etc/modprobe.d/nvidia.conf \"" >> \
+			"${ED}"/usr/lib/dracut/dracut.conf.d/10-${PN}.conf || die
+	fi
 }
 
 pkg_preinst() {
@@ -564,8 +565,8 @@ pkg_postinst() {
 		ewarn "installed by the ebuild to handle sleep using the official upstream"
 		ewarn "script. It is recommended to disable the option."
 	fi
-	if [[ $(realpath "${EROOT}"{/etc,{/usr,}/lib*}/elogind/system-sleep | sort | uniq | \
-		xargs -d'\n' grep -Ril nvidia 2>/dev/null | wc -l) -gt 2 ]]
+	if [[ $(realpath "${EROOT}"{/etc,{/usr,}/lib*}/elogind/system-sleep 2>/dev/null | \
+		sort | uniq | xargs -d'\n' grep -Ril nvidia 2>/dev/null | wc -l) -gt 2 ]]
 	then
 		ewarn
 		ewarn "!!! WARNING !!!"
