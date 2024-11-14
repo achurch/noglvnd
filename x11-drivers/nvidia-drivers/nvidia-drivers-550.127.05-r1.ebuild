@@ -442,6 +442,22 @@ documentation that is installed alongside this README."
 	# TODO: cleanup after 255.5 been stable for a few months
 	dosym {/usr/lib,/"${libdir}"}/elogind/system-sleep/nvidia
 
+	# needed with >=systemd-256 or may fail to resume with some setups
+	# https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=1072722
+	insinto "${unitdir}"/systemd-homed.service.d
+	newins - 10-nvidia.conf <<-EOF
+		[Service]
+		Environment=SYSTEMD_HOME_LOCK_FREEZE_SESSION=false
+	EOF
+	insinto "${unitdir}"/systemd-suspend.service.d
+	newins - 10-nvidia.conf <<-EOF
+		[Service]
+		Environment=SYSTEMD_SLEEP_FREEZE_USER_SESSIONS=false
+	EOF
+	dosym -r "${unitdir}"/systemd-{suspend,hibernate}.service.d/10-nvidia.conf
+	dosym -r "${unitdir}"/systemd-{suspend,hybrid-sleep}.service.d/10-nvidia.conf
+	dosym -r "${unitdir}"/systemd-{suspend,suspend-then-hibernate}.service.d/10-nvidia.conf
+
 	# symlink non-versioned so nvidia-settings can use it even if misdetected
 	dosym nvidia-application-profiles-${PV}-key-documentation \
 		${paths[APPLICATION_PROFILE]}/nvidia-application-profiles-key-documentation

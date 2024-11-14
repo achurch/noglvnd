@@ -20,6 +20,9 @@ CRATES="
 	paste@1.0.14
 "
 
+RUST_MIN_VER="1.74.1"
+RUST_OPTIONAL=1
+
 inherit cargo
 
 DESCRIPTION="OpenGL-like graphic library for Linux"
@@ -32,7 +35,7 @@ else
 	SRC_URI="
 		https://archive.mesa3d.org/${MY_P}.tar.xz
 	"
-	KEYWORDS="~alpha ~amd64 ~arm ~arm64 ~hppa ~loong ~mips ~ppc ~ppc64 ~riscv ~s390 ~sparc ~x86 ~amd64-linux ~x86-linux ~x64-solaris"
+	KEYWORDS="~alpha amd64 ~arm arm64 ~hppa ~loong ~mips ppc ~ppc64 ~riscv ~s390 sparc x86 ~amd64-linux ~x86-linux ~x64-solaris"
 fi
 
 # This should be {CARGO_CRATE_URIS//.crate/.tar.gz} to correspond to the wrap files,
@@ -162,7 +165,7 @@ DEPEND="${RDEPEND}
 BDEPEND="
 	${PYTHON_DEPS}
 	opencl? (
-		>=virtual/rust-1.62.0
+		${RUST_DEPEND}
 		>=dev-util/bindgen-0.58.0
 	)
 	>=dev-build/meson-1.4.1
@@ -184,11 +187,15 @@ BDEPEND="
 		video_cards_nvk? (
 			>=dev-util/bindgen-0.68.1
 			>=dev-util/cbindgen-0.26.0
-			>=virtual/rust-1.74.1
+			${RUST_DEPEND}
 		)
 	)
 	wayland? ( dev-util/wayland-scanner )
 "
+
+PATCHES=(
+	"${FILESDIR}"/${PV}-dril-Fixup-order-of-pixel-formats-in-drilConfigs.patch
+)
 
 QA_WX_LOAD="
 x86? (
@@ -301,6 +308,10 @@ pkg_setup() {
 
 	use llvm && llvm-r1_pkg_setup
 	python-any-r1_pkg_setup
+
+	if use opencl || (use vulkan && use video_cards_nvk); then
+		rust_pkg_setup
+	fi
 }
 
 src_prepare() {
