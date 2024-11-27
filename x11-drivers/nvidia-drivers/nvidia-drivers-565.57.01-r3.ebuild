@@ -7,7 +7,7 @@ MODULES_OPTIONAL_IUSE=+modules
 inherit desktop flag-o-matic linux-mod-r1 readme.gentoo-r1
 inherit systemd toolchain-funcs unpacker user-info
 
-MODULES_KERNEL_MAX=6.11
+MODULES_KERNEL_MAX=6.12
 NV_URI="https://download.nvidia.com/XFree86/"
 
 DESCRIPTION="NVIDIA Accelerated Graphics Driver"
@@ -100,6 +100,7 @@ QA_PREBUILT="lib/firmware/* opt/bin/* usr/lib*"
 PATCHES=(
 	"${FILESDIR}"/nvidia-modprobe-390.141-uvm-perms.patch
 	"${FILESDIR}"/nvidia-settings-530.30.02-desktop.patch
+	"${FILESDIR}"/nvidia-drivers-565.57.01-kernel-6.12.patch
 )
 
 pkg_setup() {
@@ -114,6 +115,7 @@ pkg_setup() {
 		~DRM_KMS_HELPER
 		~SYSVIPC
 		~!LOCKDEP
+		~!PREEMPT_RT
 		~!SLUB_DEBUG_ON
 		!DEBUG_MUTEXES
 		$(usev powerd '~CPU_FREQ')
@@ -139,6 +141,10 @@ pkg_setup() {
 	local ERROR_MMU_NOTIFIER="CONFIG_MMU_NOTIFIER: is not set but needed to build with USE=kernel-open.
 	Cannot be directly selected in the kernel's menuconfig, and may need
 	selection of another option that requires it such as CONFIG_KVM."
+	local ERROR_PREEMPT_RT="CONFIG_PREEMPT_RT: is set but is unsupported by NVIDIA upstream and
+	will fail to build unless the env var IGNORE_PREEMPT_RT_PRESENCE=1 is
+	set. Please do not report issues if run into e.g. kernel panics while
+	ignoring this."
 
 	linux-mod-r1_pkg_setup
 }
@@ -196,6 +202,11 @@ src_compile() {
 	if use modules; then
 		local o_cflags=${CFLAGS} o_cxxflags=${CXXFLAGS} o_ldflags=${LDFLAGS}
 
+		# conftest.sh is broken with c23 due to func() changing meaning,
+		# and then fails later due to ealier misdetections
+		# TODO: try without now and then + drop modargs' CC= (bug #944092)
+		KERNEL_CC+=" -std=gnu17"
+
 		local modlistargs=video:kernel
 		if use kernel-open; then
 			modlistargs+=-module-source:kernel-module-source/kernel-open
@@ -211,6 +222,7 @@ src_compile() {
 
 		local modlist=( nvidia{,-drm,-modeset,-peermem,-uvm}=${modlistargs} )
 		local modargs=(
+			CC="${KERNEL_CC}" # needed for above gnu17 workaround
 			IGNORE_CC_MISMATCH=yes NV_VERBOSE=1
 			SYSOUT="${KV_OUT_DIR}" SYSSRC="${KV_DIR}"
 		)
