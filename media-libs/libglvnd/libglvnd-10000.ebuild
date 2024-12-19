@@ -4,6 +4,9 @@ EAPI="8"
 # on media-libs/libglvnd instead of virtual/opengl to indicate an OpenGL
 # requirement.  It installs nothing and simply adds the virtual/opengl
 # dependency.
+#
+# (As of virtual/opengl-8, upstream's virtual/opengl package actually
+# depends on this package, so we fix virtual/opengl in this repository.)
 
 DESCRIPTION="Dummy package to provide virtual/opengl dependency"
 SLOT="0"

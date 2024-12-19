@@ -13,6 +13,6 @@ IUSE="X"
 
 RDEPEND="
 	|| (
-		media-libs/libglvnd[X?,${MULTILIB_USEDEP}]
+		>=media-libs/mesa-9.1.6[X(+),${MULTILIB_USEDEP}]
 		dev-util/mingw64-runtime
 	)"
