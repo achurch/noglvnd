@@ -4,7 +4,7 @@
 EAPI=8
 
 MODULES_OPTIONAL_IUSE=+modules
-inherit desktop flag-o-matic linux-mod-r1 readme.gentoo-r1
+inherit desktop eapi9-pipestatus flag-o-matic linux-mod-r1 readme.gentoo-r1
 inherit systemd toolchain-funcs unpacker user-info
 
 MODULES_KERNEL_MAX=6.12
@@ -24,7 +24,7 @@ S=${WORKDIR}
 
 LICENSE="NVIDIA-r2 Apache-2.0 BSD BSD-2 GPL-2 MIT ZLIB curl openssl"
 SLOT="0/${PV%%.*}"
-KEYWORDS="-* amd64 ~arm64"
+KEYWORDS="-* ~amd64 ~arm64"
 IUSE="+X abi_x86_32 abi_x86_64 kernel-open persistenced powerd +static-libs +tools wayland"
 REQUIRED_USE="kernel-open? ( modules )"
 
@@ -96,7 +96,6 @@ QA_PREBUILT="lib/firmware/* opt/bin/* usr/lib*"
 PATCHES=(
 	"${FILESDIR}"/nvidia-modprobe-390.141-uvm-perms.patch
 	"${FILESDIR}"/nvidia-settings-530.30.02-desktop.patch
-	"${FILESDIR}"/nvidia-drivers-565.57.01-kernel-6.12.patch
 )
 
 pkg_setup() {
@@ -125,15 +124,15 @@ pkg_setup() {
 	use kernel-open && CONFIG_CHECK+=" MMU_NOTIFIER" #843827
 
 	local drm_helper_msg="Cannot be directly selected in the kernel's config menus, and may need
-	selection of a DRM device even if unused, e.g. CONFIG_DRM_AMDGPU=m or
-	DRM_QXL=m, DRM_NOUVEAU=m also acceptable if a module and *not* built-in."
+	selection of a DRM device even if unused, e.g. CONFIG_DRM_QXL=m or
+	DRM_AMDGPU=m (among others, consult the kernel config's help), can
+	also use DRM_NOUVEAU=m as long as built as module *not* built-in."
 	local ERROR_DRM_KMS_HELPER="CONFIG_DRM_KMS_HELPER: is not set but needed for Xorg auto-detection
 	of drivers (no custom config), and for wayland / nvidia-drm.modeset=1.
 	${drm_helper_msg}"
 	local ERROR_DRM_TTM_HELPER="CONFIG_DRM_TTM_HELPER: is not set but is needed to compile when using
 	kernel version 6.11.x or newer while DRM_FBDEV_EMULATION is set.
-	${drm_helper_msg}
-	Many DRM devices like DRM_I915 cannot currently be used to enable this."
+	${drm_helper_msg}"
 	local ERROR_MMU_NOTIFIER="CONFIG_MMU_NOTIFIER: is not set but needed to build with USE=kernel-open.
 	Cannot be directly selected in the kernel's menuconfig, and may need
 	selection of another option that requires it such as CONFIG_KVM."
@@ -219,6 +218,11 @@ src_compile() {
 			CC="${KERNEL_CC}" # needed for above gnu17 workaround
 			IGNORE_CC_MISMATCH=yes NV_VERBOSE=1
 			SYSOUT="${KV_OUT_DIR}" SYSSRC="${KV_DIR}"
+
+			# kernel takes "x86" and "x86_64" as meaning the same, but nvidia
+			# makes the distinction (since 550.135) and is not happy with "x86"
+			# TODO?: it should be ok/better for tc-arch-kernel to do x86_64
+			$(usev amd64 ARCH=x86_64)
 		)
 
 		# temporary workaround for bug #914468
@@ -373,7 +377,8 @@ documentation that is installed alongside this README."
 
 		case ${m[2]} in
 			MANPAGE)
-				gzip -dc ${m[0]} | newman - ${m[0]%.gz}; assert
+				gzip -dc ${m[0]} | newman - ${m[0]%.gz}
+				pipestatus || die
 				continue
 			;;
 			GBM_BACKEND_LIB_SYMLINK) m[4]=../${m[4]};; # missing ../
