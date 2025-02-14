@@ -20,7 +20,7 @@ CRATES="
 	paste@1.0.14
 "
 
-RUST_MIN_VER="1.78.0"
+RUST_MIN_VER="1.74.1"
 RUST_MULTILIB=1
 RUST_OPTIONAL=1
 
@@ -36,7 +36,7 @@ else
 	SRC_URI="
 		https://archive.mesa3d.org/${MY_P}.tar.xz
 	"
-	KEYWORDS="~alpha ~amd64 ~arm ~arm64 ~hppa ~loong ~mips ~ppc ~ppc64 ~riscv ~s390 ~sparc ~x86 ~amd64-linux ~x86-linux ~x64-solaris"
+	KEYWORDS="~amd64 ~arm ~arm64 ~loong ~ppc ~ppc64 ~riscv ~sparc ~x86 ~amd64-linux ~x86-linux ~x64-solaris"
 fi
 
 # This should be {CARGO_CRATE_URIS//.crate/.tar.gz} to correspond to the wrap files,
@@ -179,7 +179,7 @@ BDEPEND="
 		dev-python/pyyaml[\${PYTHON_USEDEP}]
 	")
 	video_cards_intel? (
-		~dev-util/mesa_clc-${PV}
+		~dev-util/intel_clc-${PV}
 		llvm-core/libclc[spirv(-)]
 		$(python_gen_any_dep "dev-python/ply[\${PYTHON_USEDEP}]")
 	)
@@ -196,7 +196,7 @@ BDEPEND="
 
 QA_WX_LOAD="
 x86? (
-	usr/lib/libgallium-*.so
+	usr/lib/libglapi.so.0.0.0
 	usr/lib/libOSMesa.so.8.0.0
 	libglvnd? ( usr/lib/libGLX_mesa.so.0.0.0 )
 )"
@@ -467,7 +467,7 @@ multilib_src_configure() {
 		$(meson_feature unwind libunwind)
 		$(meson_feature zstd)
 		$(meson_use cpu_flags_x86_sse2 sse2)
-		-Dmesa-clc=$(usex video_cards_intel system auto)
+		-Dintel-clc=$(usex video_cards_intel system auto)
 		-Dvalgrind=$(usex valgrind auto disabled)
 		-Dvideo-codecs=$(usex proprietary-codecs "all" "all_free")
 		-Dgallium-drivers=$(driver_list "${GALLIUM_DRIVERS[*]}")

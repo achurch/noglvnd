@@ -236,7 +236,7 @@ src_compile() {
 		)
 
 		# temporary workaround for bug #914468
-		CPP="${KERNEL_CC} -E" tc-is-clang && addpredict "${KV_OUT_DIR}"
+		addpredict "${KV_OUT_DIR}"
 
 		linux-mod-r1_src_compile
 		CFLAGS=${o_cflags} CXXFLAGS=${o_cxxflags} LDFLAGS=${o_ldflags}
@@ -332,6 +332,12 @@ $(use amd64 && usev !abi_x86_32 "
 
 Note that without USE=abi_x86_32 on ${PN}, 32bit applications
 (typically using wine / steam) will not be able to use GPU acceleration.")
+
+Be warned that USE=kernel-open may need to be either enabled or
+disabled for certain cards to function:
+- GTX 50xx (blackwell) and higher are known to require it to be enabled
+- GTX 1650 and higher (pre-blackwell) should work either way
+- Older cards require it to be disabled
 
 For additional information or for troubleshooting issues, please see
 https://wiki.gentoo.org/wiki/NVIDIA/nvidia-drivers and NVIDIA's own

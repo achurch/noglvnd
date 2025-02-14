@@ -20,7 +20,8 @@ CRATES="
 	paste@1.0.14
 "
 
-RUST_MIN_VER="1.74.1"
+RUST_MIN_VER="1.78.0"
+RUST_MULTILIB=1
 RUST_OPTIONAL=1
 
 inherit cargo
@@ -35,7 +36,7 @@ else
 	SRC_URI="
 		https://archive.mesa3d.org/${MY_P}.tar.xz
 	"
-	KEYWORDS="~alpha ~amd64 ~arm ~arm64 ~hppa ~loong ~mips ~ppc ~ppc64 ~riscv ~s390 ~sparc ~x86 ~amd64-linux ~x86-linux ~x64-solaris"
+	KEYWORDS="~amd64 ~arm ~arm64 ~loong ~ppc ~ppc64 ~riscv ~sparc ~x86 ~amd64-linux ~x86-linux ~x64-solaris"
 fi
 
 # This should be {CARGO_CRATE_URIS//.crate/.tar.gz} to correspond to the wrap files,
@@ -92,6 +93,7 @@ REQUIRED_USE="
 LIBDRM_DEPSTRING=">=x11-libs/libdrm-2.4.121"
 RDEPEND="
 	>=dev-libs/expat-2.1.0-r3[${MULTILIB_USEDEP}]
+	>=dev-util/spirv-tools-1.3.231.0[${MULTILIB_USEDEP}]
 	>=sys-libs/zlib-1.2.9[${MULTILIB_USEDEP}]
 	unwind? ( sys-libs/libunwind[${MULTILIB_USEDEP}] )
 	libglvnd? (
@@ -121,7 +123,6 @@ RDEPEND="
 	opencl? (
 		>=virtual/opencl-3
 		llvm-core/libclc[spirv(-)]
-		>=dev-util/spirv-tools-1.3.231.0
 		virtual/libelf:0=
 	)
 	vaapi? (
@@ -178,7 +179,7 @@ BDEPEND="
 		dev-python/pyyaml[\${PYTHON_USEDEP}]
 	")
 	video_cards_intel? (
-		~dev-util/intel_clc-${PV}
+		~dev-util/mesa_clc-${PV}
 		llvm-core/libclc[spirv(-)]
 		$(python_gen_any_dep "dev-python/ply[\${PYTHON_USEDEP}]")
 	)
@@ -195,7 +196,7 @@ BDEPEND="
 
 QA_WX_LOAD="
 x86? (
-	usr/lib/libglapi.so.0.0.0
+	usr/lib/libgallium-*.so
 	usr/lib/libOSMesa.so.8.0.0
 	libglvnd? ( usr/lib/libGLX_mesa.so.0.0.0 )
 )"
@@ -450,6 +451,7 @@ multilib_src_configure() {
 	emesonargs+=(
 		$(meson_use test build-tests)
 		-Dshared-glapi=enabled
+		-Dlegacy-x11=dri2
 		-Dexpat=enabled
 		$(meson_use opengl)
 		$(meson_feature opengl gbm)
@@ -465,7 +467,7 @@ multilib_src_configure() {
 		$(meson_feature unwind libunwind)
 		$(meson_feature zstd)
 		$(meson_use cpu_flags_x86_sse2 sse2)
-		-Dintel-clc=$(usex video_cards_intel system auto)
+		-Dmesa-clc=$(usex video_cards_intel system auto)
 		-Dvalgrind=$(usex valgrind auto disabled)
 		-Dvideo-codecs=$(usex proprietary-codecs "all" "all_free")
 		-Dgallium-drivers=$(driver_list "${GALLIUM_DRIVERS[*]}")
