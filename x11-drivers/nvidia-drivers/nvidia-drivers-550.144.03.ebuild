@@ -91,7 +91,8 @@ BDEPEND="
 	virtual/pkgconfig
 "
 
-QA_PREBUILT="lib/firmware/* opt/bin/* usr/lib*"
+# there is some non-prebuilt exceptions but rather not maintain a list
+QA_PREBUILT="lib/firmware/* usr/bin/* usr/lib*"
 
 PATCHES=(
 	"${FILESDIR}"/nvidia-modprobe-390.141-uvm-perms.patch
@@ -158,11 +159,9 @@ src_prepare() {
 	sed 's/defined(CONFIG_DRM/defined(CONFIG_DRM_KMS_HELPER/g' \
 		-i kernel{,-module-source/kernel-open}/conftest.sh || die
 
-	# adjust service files
 	sed 's/__USER__/nvpd/' \
 		nvidia-persistenced/init/systemd/nvidia-persistenced.service.template \
 		> "${T}"/nvidia-persistenced.service || die
-	sed -i "s|/usr|${EPREFIX}/opt|" systemd/system/nvidia-powerd.service || die
 
 	# use alternative vulkan icd option if USE=-X (bug #909181)
 	use X || sed -i 's/"libGLX/"libEGL/' nvidia_{layers,icd}.json || die
@@ -390,7 +389,7 @@ documentation that is installed alongside this README."
 		elif [[ ${m[2]} == EXPLICIT_PATH ]]; then
 			into=${m[3]}
 		elif [[ ${m[2]} == *_BINARY ]]; then
-			into=/opt/bin
+			into=/usr/bin
 		elif [[ ${m[3]} == COMPAT32 ]]; then
 			use abi_x86_32 || continue
 			into=/usr/${libdir32}

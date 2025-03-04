@@ -4,8 +4,8 @@
 EAPI=8
 
 MODULES_OPTIONAL_IUSE=+modules
-inherit desktop eapi9-pipestatus flag-o-matic linux-mod-r1 readme.gentoo-r1
-inherit systemd toolchain-funcs unpacker user-info
+inherit desktop eapi9-pipestatus eapi9-ver flag-o-matic linux-mod-r1
+inherit readme.gentoo-r1 systemd toolchain-funcs unpacker user-info
 
 MODULES_KERNEL_MAX=6.13
 NV_URI="https://download.nvidia.com/XFree86/"
@@ -95,7 +95,8 @@ BDEPEND="
 	virtual/pkgconfig
 "
 
-QA_PREBUILT="lib/firmware/* opt/bin/* usr/lib*"
+# there is some non-prebuilt exceptions but rather not maintain a list
+QA_PREBUILT="lib/firmware/* usr/bin/* usr/lib*"
 
 PATCHES=(
 	"${FILESDIR}"/nvidia-modprobe-390.141-uvm-perms.patch
@@ -166,11 +167,9 @@ src_prepare() {
 	sed 's/defined(CONFIG_DRM/defined(CONFIG_DRM_KMS_HELPER/g' \
 		-i kernel{,-module-source/kernel-open}/conftest.sh || die
 
-	# adjust service files
 	sed 's/__USER__/nvpd/' \
 		nvidia-persistenced/init/systemd/nvidia-persistenced.service.template \
 		> "${T}"/nvidia-persistenced.service || die
-	sed -i "s|/usr|${EPREFIX}/opt|" systemd/system/nvidia-powerd.service || die
 
 	# use alternative vulkan icd option if USE=-X (bug #909181)
 	use X || sed -i 's/"libGLX/"libEGL/' nvidia_{layers,icd}.json || die
@@ -409,7 +408,7 @@ documentation that is installed alongside this README."
 		elif [[ ${m[2]} == EXPLICIT_PATH ]]; then
 			into=${m[3]}
 		elif [[ ${m[2]} == *_BINARY ]]; then
-			into=/opt/bin
+			into=/usr/bin
 		elif [[ ${m[3]} == COMPAT32 ]]; then
 			use abi_x86_32 || continue
 			into=/usr/${libdir32}
@@ -612,9 +611,7 @@ pkg_postinst() {
 		elog "Of note, may possibly cause issues with SLI and Reverse PRIME."
 	fi
 
-	if use !kernel-open && [[ ${REPLACING_VERSIONS##* } ]] &&
-		ver_test ${REPLACING_VERSIONS##* } -lt 555
-	then
+	if use !kernel-open && ver_replacing -lt 555; then
 		elog
 		elog "If using a Turing/Ampere+ GPU (aka GTX 1650+), note that >=nvidia-drivers-555"
 		elog "enables the use of the GSP firmware by default. *If* experience regressions,"
