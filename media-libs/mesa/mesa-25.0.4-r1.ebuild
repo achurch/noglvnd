@@ -3,7 +3,7 @@
 
 EAPI=8
 
-LLVM_COMPAT=( {18..19} )
+LLVM_COMPAT=( {15..19} )
 LLVM_OPTIONAL=1
 CARGO_OPTIONAL=1
 PYTHON_COMPAT=( python3_{10..13} )
@@ -36,7 +36,7 @@ else
 	SRC_URI="
 		https://archive.mesa3d.org/${MY_P}.tar.xz
 	"
-	KEYWORDS="~alpha ~amd64 ~arm ~arm64 ~hppa ~loong ~mips ~ppc ~ppc64 ~riscv ~s390 ~sparc ~x86 ~amd64-linux ~x86-linux ~x64-solaris"
+	KEYWORDS="~amd64 ~arm ~arm64 ~loong ~ppc ~ppc64 ~riscv ~sparc ~x86 ~amd64-linux ~x86-linux ~x64-solaris"
 fi
 
 # This should be {CARGO_CRATE_URIS//.crate/.tar.gz} to correspond to the wrap files,
@@ -62,7 +62,7 @@ done
 
 IUSE="${IUSE_VIDEO_CARDS}
 	cpu_flags_x86_sse2 d3d9 debug libglvnd +llvm
-	lm-sensors opencl +opengl +proprietary-codecs
+	lm-sensors opencl +opengl osmesa +proprietary-codecs
 	test unwind vaapi valgrind vdpau vulkan
 	wayland +X xa +zstd"
 RESTRICT="!test? ( test )"
@@ -157,24 +157,20 @@ RDEPEND="${RDEPEND}
 DEPEND="${RDEPEND}
 	video_cards_d3d12? ( >=dev-util/directx-headers-1.614.1[${MULTILIB_USEDEP}] )
 	valgrind? ( dev-debug/valgrind )
-	wayland? ( >=dev-libs/wayland-protocols-1.41 )
+	wayland? ( >=dev-libs/wayland-protocols-1.38 )
 	X? (
 		x11-libs/libXrandr[${MULTILIB_USEDEP}]
 		x11-base/xorg-proto
 	)
 "
-
-CLC_DEPSTRING="
-	~dev-util/mesa_clc-${PV}
-	llvm-core/libclc[spirv(-)]
-"
 BDEPEND="
 	${PYTHON_DEPS}
 	opencl? (
+		>=dev-build/meson-1.7.0
 		>=dev-util/bindgen-0.71.0
 		${RUST_DEPEND}
 	)
-	>=dev-build/meson-1.7.0
+	>=dev-build/meson-1.4.1
 	app-alternatives/yacc
 	app-alternatives/lex
 	virtual/pkgconfig
@@ -183,15 +179,18 @@ BDEPEND="
 		dev-python/packaging[\${PYTHON_USEDEP}]
 		dev-python/pyyaml[\${PYTHON_USEDEP}]
 	")
-	video_cards_intel? ( ${CLC_DEPSTRING} )
-	video_cards_panfrost? ( ${CLC_DEPSTRING} )
+	video_cards_intel? (
+		~dev-util/mesa_clc-${PV}
+		llvm-core/libclc[spirv(-)]
+		$(python_gen_any_dep "dev-python/ply[\${PYTHON_USEDEP}]")
+	)
 	vulkan? (
 		dev-util/glslang
 		video_cards_nvk? (
+			>=dev-build/meson-1.7.0
 			>=dev-util/bindgen-0.71.0
 			>=dev-util/cbindgen-0.26.0
 			${RUST_DEPEND}
-			${CLC_DEPSTRING}
 		)
 	)
 	wayland? ( dev-util/wayland-scanner )
@@ -200,8 +199,13 @@ BDEPEND="
 QA_WX_LOAD="
 x86? (
 	usr/lib/libgallium-*.so
+	usr/lib/libOSMesa.so.8.0.0
 	libglvnd? ( usr/lib/libGLX_mesa.so.0.0.0 )
 )"
+
+PATCHES=(
+	"${FILESDIR}/${PN}_egl_fix_sw_fallback_rejection.patch"
+)
 
 src_unpack() {
 	if [[ ${PV} == 9999 ]]; then
@@ -269,12 +273,19 @@ pkg_pretend() {
 	if ! use llvm; then
 		use opencl     && ewarn "Ignoring USE=opencl     since USE does not contain llvm"
 	fi
+
+	if use osmesa && ! use llvm; then
+		ewarn "OSMesa will be slow without enabling USE=llvm"
+	fi
 }
 
 python_check_deps() {
 	python_has_version -b ">=dev-python/mako-0.8.0[${PYTHON_USEDEP}]" &&
 	python_has_version -b "dev-python/packaging[${PYTHON_USEDEP}]" &&
 	python_has_version -b "dev-python/pyyaml[${PYTHON_USEDEP}]" || return 1
+	if use llvm && use vulkan && use video_cards_intel && use amd64; then
+		python_has_version -b "dev-python/ply[${PYTHON_USEDEP}]" || return 1
+	fi
 }
 
 pkg_setup() {
@@ -441,16 +452,11 @@ multilib_src_configure() {
 		emesonargs+=($(meson_feature video_cards_intel intel-rt))
 	fi
 
-	if use video_cards_intel ||
-	   use video_cards_nvk ||
-	   use video_cards_panfrost; then
-	   emesonargs+=(-Dmesa-clc=system)
-	fi
-
 	use debug && EMESON_BUILDTYPE=debug
 
 	emesonargs+=(
 		$(meson_use test build-tests)
+		-Dshared-glapi=enabled
 		-Dlegacy-x11=dri2
 		-Dexpat=enabled
 		$(meson_use opengl)
@@ -462,9 +468,11 @@ multilib_src_configure() {
 		$(meson_use libglvnd glvnd)
 		$(meson_feature llvm)
 		$(meson_feature lm-sensors lmsensors)
+		$(meson_use osmesa)
 		$(meson_feature unwind libunwind)
 		$(meson_feature zstd)
 		$(meson_use cpu_flags_x86_sse2 sse2)
+		-Dmesa-clc=$(usex video_cards_intel system auto)
 		-Dvalgrind=$(usex valgrind auto disabled)
 		-Dvideo-codecs=$(usex proprietary-codecs "all" "all_free")
 		-Dgallium-drivers=$(driver_list "${GALLIUM_DRIVERS[*]}")
