@@ -13,12 +13,11 @@ inherit flag-o-matic llvm-r1 meson-multilib python-any-r1 linux-info rust-toolch
 MY_P="${P/_/-}"
 
 CRATES="
-	paste@1.0.14
+	syn@2.0.68
 	proc-macro2@1.0.86
-	quote@1.0.35
-	rustc-hash@2.1.1
-	syn@2.0.87
+	quote@1.0.33
 	unicode-ident@1.0.12
+	paste@1.0.14
 "
 
 RUST_MIN_VER="1.78.0"
@@ -37,7 +36,7 @@ else
 	SRC_URI="
 		https://archive.mesa3d.org/${MY_P}.tar.xz
 	"
-	KEYWORDS="~alpha ~amd64 ~arm ~arm64 ~hppa ~loong ~mips ~ppc ~ppc64 ~riscv ~s390 ~sparc ~x86 ~amd64-linux ~x86-linux ~x64-solaris"
+	KEYWORDS="~alpha ~amd64 ~arm64 ~hppa ~loong ~mips ~ppc ~ppc64 ~riscv ~s390 ~sparc ~x86 ~amd64-linux ~x86-linux ~x64-solaris"
 fi
 
 # This should be {CARGO_CRATE_URIS//.crate/.tar.gz} to correspond to the wrap files,
@@ -55,19 +54,32 @@ SLOT="0"
 
 RADEON_CARDS="r300 r600 radeon radeonsi"
 VIDEO_CARDS="${RADEON_CARDS}
-	asahi d3d12 freedreno imagination intel lavapipe lima nouveau nvk panfrost
-	v3d vc4 virgl vivante vmware zink"
+	asahi d3d12 freedreno intel lavapipe lima nouveau nvk panfrost v3d vc4 virgl
+	vivante vmware zink"
 for card in ${VIDEO_CARDS}; do
 	IUSE_VIDEO_CARDS+=" video_cards_${card}"
 done
 
 IUSE="${IUSE_VIDEO_CARDS}
-	cpu_flags_x86_sse2 debug libglvnd +llvm
+	cpu_flags_x86_sse2 d3d9 debug libglvnd +llvm
 	lm-sensors opencl +opengl +proprietary-codecs
-	sysprof test unwind vaapi valgrind vdpau vulkan
-	wayland +X +zstd"
+	test unwind vaapi valgrind vdpau vulkan
+	wayland +X xa +zstd"
 RESTRICT="!test? ( test )"
 REQUIRED_USE="
+	d3d9? (
+		|| (
+			video_cards_freedreno
+			video_cards_intel
+			video_cards_nouveau
+			video_cards_panfrost
+			video_cards_r300
+			video_cards_r600
+			video_cards_radeonsi
+			video_cards_vmware
+			video_cards_zink
+		)
+	)
 	llvm? ( ${LLVM_REQUIRED_USE} )
 	video_cards_lavapipe? ( llvm vulkan )
 	video_cards_radeon? ( x86? ( llvm ) amd64? ( llvm ) )
@@ -75,6 +87,7 @@ REQUIRED_USE="
 	video_cards_zink? ( vulkan opengl )
 	video_cards_nvk? ( vulkan video_cards_nouveau )
 	vdpau? ( X )
+	xa? ( X )
 "
 
 LIBDRM_DEPSTRING=">=x11-libs/libdrm-2.4.121"
@@ -122,7 +135,7 @@ RDEPEND="
 	wayland? ( >=dev-libs/wayland-1.18.0[${MULTILIB_USEDEP}] )
 	${LIBDRM_DEPSTRING}[video_cards_freedreno?,video_cards_intel?,video_cards_nouveau?,video_cards_vc4?,video_cards_vivante?,video_cards_vmware?,${MULTILIB_USEDEP}]
 	X? (
-		>=x11-libs/libX11-1.8[${MULTILIB_USEDEP}]
+		>=x11-libs/libX11-1.6.2[${MULTILIB_USEDEP}]
 		>=x11-libs/libxshmfence-1.1[${MULTILIB_USEDEP}]
 		>=x11-libs/libXext-1.3.2[${MULTILIB_USEDEP}]
 		>=x11-libs/libXxf86vm-1.1.3[${MULTILIB_USEDEP}]
@@ -142,7 +155,6 @@ RDEPEND="${RDEPEND}
 "
 
 DEPEND="${RDEPEND}
-	sysprof? ( >=dev-util/sysprof-capture-3.38.0 )
 	video_cards_d3d12? ( >=dev-util/directx-headers-1.614.1[${MULTILIB_USEDEP}] )
 	valgrind? ( dev-debug/valgrind )
 	wayland? ( >=dev-libs/wayland-protocols-1.41 )
@@ -159,7 +171,7 @@ CLC_DEPSTRING="
 BDEPEND="
 	${PYTHON_DEPS}
 	opencl? (
-		>=dev-util/bindgen-0.71.1
+		>=dev-util/bindgen-0.71.0
 		${RUST_DEPEND}
 	)
 	>=dev-build/meson-1.7.0
@@ -177,7 +189,7 @@ BDEPEND="
 	vulkan? (
 		dev-util/glslang
 		video_cards_nvk? (
-			>=dev-util/bindgen-0.71.1
+			>=dev-util/bindgen-0.71.0
 			>=dev-util/cbindgen-0.26.0
 			${RUST_DEPEND}
 			${CLC_DEPSTRING}
@@ -214,7 +226,6 @@ pkg_pretend() {
 		if ! use video_cards_asahi &&
 		   ! use video_cards_d3d12 &&
 		   ! use video_cards_freedreno &&
-		   ! use video_cards_imagination &&
 		   ! use video_cards_intel &&
 		   ! use video_cards_lavapipe &&
 		   ! use video_cards_nouveau &&
@@ -223,7 +234,7 @@ pkg_pretend() {
 		   ! use video_cards_radeonsi &&
 		   ! use video_cards_v3d &&
 		   ! use video_cards_virgl; then
-			ewarn "Ignoring USE=vulkan     since VIDEO_CARDS does not contain asahi, d3d12, freedreno, imagination, intel, lavapipe, nouveau, nvk, panfrost, radeonsi, v3d, or virgl"
+			ewarn "Ignoring USE=vulkan     since VIDEO_CARDS does not contain asahi, d3d12, freedreno, intel, lavapipe, nouveau, nvk, panfrost, radeonsi, v3d, or virgl"
 		fi
 	fi
 
@@ -245,6 +256,15 @@ pkg_pretend() {
 		   ! use video_cards_radeonsi &&
 		   ! use video_cards_virgl; then
 			ewarn "Ignoring USE=vdpau      since VIDEO_CARDS does not contain d3d12, nouveau, r600, radeonsi, or virgl"
+		fi
+	fi
+
+	if use xa; then
+		if ! use video_cards_freedreno &&
+		   ! use video_cards_intel &&
+		   ! use video_cards_nouveau &&
+		   ! use video_cards_vmware; then
+			ewarn "Ignoring USE=xa         since VIDEO_CARDS does not contain freedreno, intel, nouveau, or vmware"
 		fi
 	fi
 
@@ -305,6 +325,20 @@ multilib_src_configure() {
 	use wayland && platforms+=",wayland"
 	emesonargs+=(-Dplatforms=${platforms#,})
 
+	if use video_cards_freedreno ||
+	   use video_cards_intel || # crocus i915 iris
+	   use video_cards_nouveau ||
+	   use video_cards_panfrost ||
+	   use video_cards_r300 ||
+	   use video_cards_r600 ||
+	   use video_cards_radeonsi ||
+	   use video_cards_vmware || # svga
+	   use video_cards_zink; then
+		emesonargs+=($(meson_use d3d9 gallium-nine))
+	else
+		emesonargs+=(-Dgallium-nine=false)
+	fi
+
 	if use video_cards_d3d12 ||
 	   use video_cards_nouveau ||
 	   use video_cards_r600 ||
@@ -328,6 +362,15 @@ multilib_src_configure() {
 		emesonargs+=($(meson_feature vdpau gallium-vdpau))
 	else
 		emesonargs+=(-Dgallium-vdpau=disabled)
+	fi
+
+	if use video_cards_freedreno ||
+	   use video_cards_intel ||
+	   use video_cards_nouveau ||
+	   use video_cards_vmware; then
+		emesonargs+=($(meson_feature xa gallium-xa))
+	else
+		emesonargs+=(-Dgallium-xa=disabled)
 	fi
 
 	gallium_enable !llvm softpipe
@@ -367,7 +410,6 @@ multilib_src_configure() {
 		vulkan_enable video_cards_asahi asahi
 		vulkan_enable video_cards_d3d12 microsoft-experimental
 		vulkan_enable video_cards_freedreno freedreno
-		vulkan_enable video_cards_imagination imagination-experimental
 		vulkan_enable video_cards_intel intel intel_hasvk
 		vulkan_enable video_cards_lavapipe swrast
 		vulkan_enable video_cards_panfrost panfrost
@@ -432,7 +474,6 @@ multilib_src_configure() {
 		$(meson_feature lm-sensors lmsensors)
 		$(meson_feature unwind libunwind)
 		$(meson_feature zstd)
-		$(meson_use sysprof)
 		$(meson_use cpu_flags_x86_sse2 sse2)
 		-Dvalgrind=$(usex valgrind auto disabled)
 		-Dvideo-codecs=$(usex proprietary-codecs "all" "all_free")
