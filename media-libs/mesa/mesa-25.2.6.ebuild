@@ -88,7 +88,7 @@ RDEPEND="
 		!app-eselect/eselect-opengl
 	)
 	!libglvnd? (
-		>=app-eselect/eselect-opengl-1.3.0
+		>=app-eselect/eselect-opengl-1.3.4
 	)
 	llvm? (
 		$(llvm_gen_dep "
