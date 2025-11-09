@@ -80,7 +80,7 @@ LIBDRM_DEPSTRING=">=x11-libs/libdrm-2.4.121"
 RDEPEND="
 	>=dev-libs/expat-2.1.0-r3[${MULTILIB_USEDEP}]
 	>=dev-util/spirv-tools-1.3.231.0[${MULTILIB_USEDEP}]
-	>=sys-libs/zlib-1.2.9[${MULTILIB_USEDEP}]
+	>=virtual/zlib-1.2.9:=[${MULTILIB_USEDEP}]
 	unwind? ( sys-libs/libunwind[${MULTILIB_USEDEP}] )
 	libglvnd? (
 		>=media-libs/libglvnd-1.3.2[X?,${MULTILIB_USEDEP}]
