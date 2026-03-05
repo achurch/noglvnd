@@ -4,20 +4,21 @@
 EAPI=8
 
 MODULES_OPTIONAL_IUSE=+modules
-inherit desktop dot-a eapi9-pipestatus flag-o-matic linux-mod-r1
+inherit desktop dot-a eapi9-pipestatus eapi9-ver flag-o-matic linux-mod-r1
 inherit readme.gentoo-r1 systemd toolchain-funcs unpacker user-info
 
-MODULES_KERNEL_MAX=6.19
-NV_URI="https://download.nvidia.com/XFree86/"
+MODULES_KERNEL_MAX=6.18
+NV_PIN=580.126.18
 
 DESCRIPTION="NVIDIA Accelerated Graphics Driver"
-HOMEPAGE="https://www.nvidia.com/"
+HOMEPAGE="https://developer.nvidia.com/vulkan-driver/"
 SRC_URI="
-	amd64? ( ${NV_URI}Linux-x86_64/${PV}/NVIDIA-Linux-x86_64-${PV}.run )
-	arm64? ( ${NV_URI}Linux-aarch64/${PV}/NVIDIA-Linux-aarch64-${PV}.run )
-	$(printf "${NV_URI}%s/%s-${PV}.tar.bz2 " \
+	https://developer.nvidia.com/downloads/vulkan-beta-${PV//.}-linux
+		-> NVIDIA-Linux-x86_64-${PV}.run
+	$(printf "https://download.nvidia.com/XFree86/%s/%s-${NV_PIN}.tar.bz2 " \
 		nvidia-{installer,modprobe,persistenced,settings,xconfig}{,})
-	${NV_URI}NVIDIA-kernel-module-source/NVIDIA-kernel-module-source-${PV}.tar.xz
+	https://github.com/NVIDIA/open-gpu-kernel-modules/archive/refs/tags/${PV}.tar.gz
+		-> open-gpu-kernel-modules-${PV}.tar.gz
 "
 # nvidia-installer is unused but here for GPL-2's "distribute sources"
 S=${WORKDIR}
@@ -26,9 +27,12 @@ LICENSE="
 	NVIDIA-2025 Apache-2.0 Boost-1.0 BSD BSD-2 GPL-2 MIT ZLIB
 	curl openssl public-domain
 "
-SLOT="0/${PV%%.*}"
-KEYWORDS="-* amd64 ~arm64"
-IUSE="+X abi_x86_32 abi_x86_64 kernel-open persistenced powerd +static-libs +tools wayland"
+SLOT="0/vulkan"
+KEYWORDS="-* ~amd64"
+IUSE="
+	+X abi_x86_32 abi_x86_64 kernel-open persistenced powerd
+	+static-libs +tools wayland
+"
 
 IUSE+=" egl libglvnd"
 
@@ -102,7 +106,6 @@ QA_PREBUILT="lib/firmware/* usr/bin/* usr/lib*"
 PATCHES=(
 	"${FILESDIR}"/nvidia-modprobe-390.141-uvm-perms.patch
 	"${FILESDIR}"/nvidia-settings-530.30.02-desktop.patch
-	"${FILESDIR}"/nvidia-kernel-module-source-${PV}-kernel6.19.patch
 )
 
 pkg_setup() {
@@ -119,8 +122,6 @@ pkg_setup() {
 		~SYSVIPC
 		~!LOCKDEP
 		~!PREEMPT_RT
-		~!RANDSTRUCT_FULL
-		~!RANDSTRUCT_PERFORMANCE
 		~!SLUB_DEBUG_ON
 		!DEBUG_MUTEXES
 		$(usev powerd '~CPU_FREQ')
@@ -137,15 +138,16 @@ pkg_setup() {
 	selection of a DRM device even if unused, e.g. CONFIG_DRM_QXL=m or
 	DRM_AMDGPU=m (among others, consult the kernel config's help), can
 	also use DRM_NOUVEAU=m as long as built as module *not* built-in."
-	local ERROR_DRM_KMS_HELPER="CONFIG_DRM_KMS_HELPER: is not set but needed for Xorg auto-detection
-	of drivers (no custom config), and for wayland / nvidia-drm.modeset=1.
+	local ERROR_DRM_KMS_HELPER="CONFIG_DRM_KMS_HELPER: is not set but is needed for nvidia-drm.modeset=1
+	support (see ${EPREFIX}/etc/modprobe.d/nvidia.conf) which is needed for wayland
+	and for config-less Xorg auto-detection.
 	${drm_helper_msg}"
 	local ERROR_DRM_TTM_HELPER="CONFIG_DRM_TTM_HELPER: is not set but is needed to compile when using
 	kernel version 6.11.x or newer while DRM_FBDEV_EMULATION is set.
 	${drm_helper_msg}"
 	local ERROR_DRM_FBDEV_EMULATION="CONFIG_DRM_FBDEV_EMULATION: is not set but is needed for
-	nvidia-drm.fbdev=1 support, currently off-by-default and it could
-	be ignored, but note that is due to change in the future."
+	nvidia-drm.fbdev=1 support (see ${EPREFIX}/etc/modprobe.d/nvidia.conf), may
+	result in a blank console/tty."
 	local ERROR_MMU_NOTIFIER="CONFIG_MMU_NOTIFIER: is not set but needed to build with USE=kernel-open.
 	Cannot be directly selected in the kernel's menuconfig, and may need
 	selection of another option that requires it such as CONFIG_AMD_IOMMU=y,
@@ -154,24 +156,17 @@ pkg_setup() {
 	will fail to build unless the env var IGNORE_PREEMPT_RT_PRESENCE=1 is
 	set. Please do not report issues if run into e.g. kernel panics while
 	ignoring this."
-	local randstruct_msg="is set but NVIDIA may be unstable with
-	it such as causing a kernel panic on shutdown, it is recommended to
-	disable with CONFIG_RANDSTRUCT_NONE=y (https://bugs.gentoo.org/969413
-	-- please report if this appears fixed on NVIDIA's side so can remove
-	this warning)."
-	local ERROR_RANDSTRUCT_FULL="CONFIG_RANDSTRUCT_FULL: ${randstruct_msg}"
-	local ERROR_RANDSTRUCT_PERFORMANCE="CONFIG_RANDSTRUCT_PERFORMANCE: ${randstruct_msg}"
 
 	linux-mod-r1_pkg_setup
 }
 
 src_prepare() {
 	# make patches usable across versions
-	rm nvidia-modprobe && mv nvidia-modprobe{-${PV},} || die
-	rm nvidia-persistenced && mv nvidia-persistenced{-${PV},} || die
-	rm nvidia-settings && mv nvidia-settings{-${PV},} || die
-	rm nvidia-xconfig && mv nvidia-xconfig{-${PV},} || die
-	mv NVIDIA-kernel-module-source-${PV} kernel-module-source || die
+	rm nvidia-modprobe && mv nvidia-modprobe{-${NV_PIN},} || die
+	rm nvidia-persistenced && mv nvidia-persistenced{-${NV_PIN},} || die
+	rm nvidia-settings && mv nvidia-settings{-${NV_PIN},} || die
+	rm nvidia-xconfig && mv nvidia-xconfig{-${NV_PIN},} || die
+	mv open-gpu-kernel-modules-${PV} kernel-module-source || die
 
 	default
 
@@ -185,10 +180,6 @@ src_prepare() {
 
 	# use alternative vulkan icd option if USE=-X (bug #909181)
 	use X || sed -i 's/"libGLX/"libEGL/' nvidia_{layers,icd}.json || die
-
-	# enable nvidia-drm.modeset=1 by default with USE=wayland
-	cp "${FILESDIR}"/nvidia-570.conf "${T}"/nvidia.conf || die
-	use !wayland || sed -i '/^#.*modeset=1$/s/^#//' "${T}"/nvidia.conf || die
 
 	# makefile attempts to install wayland library even if not built
 	use wayland || sed -i 's/ WAYLAND_LIB_install$//' \
@@ -363,7 +354,7 @@ documentation that is installed alongside this README."
 		linux-mod-r1_src_install
 
 		insinto /etc/modprobe.d
-		doins "${T}"/nvidia.conf
+		newins "${FILESDIR}"/nvidia-580.conf nvidia.conf
 
 		# used for gpu verification with binpkgs (not kept, see pkg_preinst)
 		insinto /usr/share/nvidia
@@ -541,7 +532,6 @@ documentation that is installed alongside this README."
 
 pkg_preinst() {
 	has_version "${CATEGORY}/${PN}[kernel-open]" && NV_HAD_KERNEL_OPEN=
-	has_version "${CATEGORY}/${PN}[wayland]" && NV_HAD_WAYLAND=
 
 	use modules || return
 
@@ -614,9 +604,12 @@ pkg_postinst() {
 		ewarn "Also see: ${EROOT}/usr/share/doc/${PF}/html/kernel_open.html"
 	fi
 
-	if use wayland && use modules && [[ ! -v NV_HAD_WAYLAND ]]; then
-		elog "\nNote that with USE=wayland, nvidia-drm.modeset=1 will be enabled"
-		elog "in '${EROOT}/etc/modprobe.d/nvidia.conf'. *If* experience issues,"
-		elog "either disable wayland or edit nvidia.conf."
+	if ver_replacing -lt 580.94.18; then
+		elog "\n>=nvidia-drivers-580.94.18:0/vulkan changes some defaults that may or may"
+		elog "not need attention:"
+		elog "1. nvidia-drm.modeset=1 is now default regardless of USE=wayland"
+		elog "2. nvidia-drm.fbdev=1 is now also tentatively default to match upstream"
+		elog "See ${EROOT}/etc/modprobe.d/nvidia.conf to modify settings if needed,"
+		elog "fbdev=1 *could* cause issues for the console display with some setups."
 	fi
 }
