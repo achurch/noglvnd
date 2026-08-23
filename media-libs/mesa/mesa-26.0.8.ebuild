@@ -163,7 +163,7 @@ BDEPEND="
 	)
 	>=dev-build/meson-1.7.0
 	app-alternatives/yacc
-	app-alternatives/lex
+	sys-devel/flex
 	virtual/pkgconfig
 	$(python_gen_any_dep "
 		>=dev-python/mako-0.8.0[\${PYTHON_USEDEP}]
