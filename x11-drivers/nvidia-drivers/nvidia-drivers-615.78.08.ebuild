@@ -9,7 +9,7 @@ inherit desktop dot-a eapi9-pipestatus eapi9-ver flag-o-matic
 inherit linux-mod-r1 python-single-r1 readme.gentoo-r1 systemd
 inherit toolchain-funcs unpacker user-info
 
-MODULES_KERNEL_MAX=7.2
+MODULES_KERNEL_MAX=7.3
 NV_URI="https://download.nvidia.com/XFree86/"
 
 DESCRIPTION="NVIDIA Accelerated Graphics Driver"
@@ -117,6 +117,8 @@ PATCHES=(
 )
 
 pkg_setup() {
+	python-single-r1_pkg_setup
+
 	use modules && [[ ${MERGE_TYPE} != binary ]] || return
 
 	# do early before linux-mod-r1 so can use chkconfig to setup CONFIG_CHECK
@@ -157,7 +159,6 @@ pkg_setup() {
 	ignoring this."
 
 	linux-mod-r1_pkg_setup
-	python-single-r1_pkg_setup
 }
 
 src_prepare() {
